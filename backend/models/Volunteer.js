@@ -1,6 +1,7 @@
 const mongoose = require("mongoose");
 
 const volunteerSchema = new mongoose.Schema({
+
   name: String,
   phone: String,
 
@@ -15,7 +16,6 @@ const volunteerSchema = new mongoose.Schema({
     default: null
   },
 
-  // ⭐ NEW FIELDS
   completedCamps: {
     type: Number,
     default: 0
@@ -25,14 +25,9 @@ const volunteerSchema = new mongoose.Schema({
     {
       name: String,
       icon: String,
-      description: String,
-      earnedAt: {
-        type: Date,
-        default: Date.now
-      }
+      description: String
     }
   ]
 });
-
 
 module.exports = mongoose.model("Volunteer", volunteerSchema);

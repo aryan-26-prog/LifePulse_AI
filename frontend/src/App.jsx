@@ -24,6 +24,7 @@ import ReportAnalytics from "./pages/admin/ReportAnalytics";
 
 import VolunteerDashboard from "./pages/volunteer/VolunteerDashboard";
 import VolunteerProfile from "./pages/volunteer/VolunteerProfile";
+import SubmitReport from "./pages/volunteer/SubmitReport";
 
 import ProtectedRoute from "./auth/ProtectedRoute";
 
@@ -75,6 +76,11 @@ export default function App() {
 
       <Route path="/volunteer" element={<VolunteerDashboard />} />
       <Route path="/volunteer/profile" element={<VolunteerProfile />} />
+      <Route
+        path="/volunteer/report/:campId"
+        element={<SubmitReport />}
+      />
+
 
 
 

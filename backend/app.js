@@ -21,6 +21,7 @@ app.use("/api/admin", require("./routes/adminRoutes"));
 app.use("/api/public", require("./routes/publicRoutes"));
 app.use("/api/ngo", require("./routes/ngoRoutes"));
 app.use("/api/volunteers", require("./routes/volunteerRoutes"));
+app.use("/api/work-report", require("./routes/workReportRoutes"));
 
 
 const PORT = process.env.PORT || 5000;
