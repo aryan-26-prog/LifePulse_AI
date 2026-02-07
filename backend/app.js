@@ -28,7 +28,7 @@ app.use("/api/ngo", require("./routes/ngoRoutes"));
 app.use("/api/volunteers", require("./routes/volunteerRoutes"));
 app.use("/api/work-report", require("./routes/workReportRoutes"));
 
-/* ================= SOCKET SETUP ================= */
+/* ================= SOCKET SERVER ================= */
 
 const server = http.createServer(app);
 
@@ -38,20 +38,22 @@ const io = new Server(server, {
   }
 });
 
-/* ⭐ SINGLE SOURCE OF TRUTH */
+/* ⭐ Make io global */
 app.set("io", io);
+
+/* ================= SOCKET EVENTS ================= */
 
 io.on("connection", (socket) => {
 
-  console.log("Socket Connected:", socket.id);
+  console.log("⚡ Socket Connected:", socket.id);
 
-  /* Volunteer joins own room */
+  /* VOLUNTEER ROOM */
   socket.on("joinVolunteer", (volunteerId) => {
     socket.join(volunteerId);
     console.log("Volunteer joined room:", volunteerId);
   });
 
-  /* NGO joins NGO room */
+  /* NGO ROOM */
   socket.on("joinNGO", () => {
     socket.join("ngoRoom");
     console.log("NGO joined room");
@@ -63,8 +65,12 @@ io.on("connection", (socket) => {
 
 });
 
+/* ================= START SERVER ================= */
+
 const PORT = process.env.PORT || 5000;
 
 server.listen(PORT, () => {
-  console.log(`Server running on http://localhost:${PORT}`);
+  console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
+console.log("EMAIL USER:", process.env.EMAIL_USER);
+console.log("EMAIL PASS:", process.env.EMAIL_PASS);

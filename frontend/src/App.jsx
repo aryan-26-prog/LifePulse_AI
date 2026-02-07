@@ -13,6 +13,7 @@ import AreaDetails from "./pages/citizen/AreaDetails";
 /* Auth pages */
 import Login from "./pages/Login";
 import Register from "./pages/Register";
+import OTPVerify from "./pages/OTPVerify";
 
 /* NGO / Admin pages */
 import AdminDashboard from "./pages/admin/AdminDashboard";
@@ -40,6 +41,8 @@ export default function App() {
       <Route path="/citizen/analyzing" element={<Processing />} />
       <Route path="/citizen/map" element={<CityMap />} />
       <Route path="/citizen/area/:areaName" element={<AreaDetails />} />
+      <Route path="/verify-otp" element={<OTPVerify />} />
+
 
       {/* ========== AUTH ========== */}
       <Route path="/register" element={<Register />} />
