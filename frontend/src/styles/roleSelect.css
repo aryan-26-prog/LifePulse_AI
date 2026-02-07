@@ -1,0 +1,71 @@
+.role-container {
+  min-height: 100vh;
+  background: linear-gradient(120deg, #eef2ff, #f8fafc);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 40px;
+}
+
+.role-container h1 {
+  font-size: 2.5rem;
+  margin-bottom: 10px;
+  color: #1e293b;
+}
+
+.role-container p {
+  color: #475569;
+  margin-bottom: 40px;
+}
+
+.role-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 25px;
+  max-width: 900px;
+  width: 100%;
+}
+
+.role-card {
+  background: white;
+  border-radius: 14px;
+  padding: 30px 20px;
+  cursor: pointer;
+  box-shadow: 0 15px 35px rgba(0, 0, 0, 0.08);
+  transition: all 0.3s ease;
+}
+
+.role-card h2 {
+  margin-bottom: 10px;
+  font-size: 1.5rem;
+}
+
+.role-card p {
+  font-size: 0.95rem;
+}
+
+.role-card:hover {
+  transform: translateY(-8px) scale(1.02);
+}
+
+/* Role color accents */
+.role-card.citizen {
+  border-top: 5px solid #22c55e;
+}
+
+.role-card.ngo {
+  border-top: 5px solid #3b82f6;
+}
+
+.role-card.admin {
+  border-top: 5px solid #ef4444;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .role-grid {
+    grid-template-columns: 1fr;
+  }
+}
