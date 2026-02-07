@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import API from "../../api/api";
 import "../../styles/dashboard.css";
+import socket from "../../utils/sockets"; // ⭐ SOCKET
 
 export default function VolunteerProfile() {
 
@@ -9,16 +10,17 @@ export default function VolunteerProfile() {
 
   const volunteerId = localStorage.getItem("volunteerId");
 
+  /* ================= LOAD PROFILE ================= */
   useEffect(() => {
+    if (!volunteerId || volunteerId === "null") return;
+
     loadProfile();
   }, []);
 
   const loadProfile = async () => {
-
     try {
 
       const res = await API.get(`/volunteers/${volunteerId}/dashboard`);
-
       setVolunteer(res.data.volunteer);
       setLoading(false);
 
@@ -27,9 +29,45 @@ export default function VolunteerProfile() {
     }
   };
 
+  /* ================= SOCKET REALTIME ================= */
+  useEffect(() => {
+
+    if (!volunteerId || volunteerId === "null") return;
+
+    // ⭐ Join volunteer room
+    socket.emit("joinRoom", volunteerId);
+
+    // ⭐ When NGO approves report
+    socket.on("reportApproved", (data) => {
+
+      alert(`🎉 Report Approved! XP +${data.xpEarned}`);
+      loadProfile(); // refresh profile realtime
+    });
+
+    // ⭐ When NGO rejects report
+    socket.on("reportRejected", (data) => {
+
+      alert(`❌ Report Rejected: ${data.feedback}`);
+    });
+
+    return () => {
+      socket.off("reportApproved");
+      socket.off("reportRejected");
+    };
+
+  }, [volunteerId]);
+
   if (loading || !volunteer) {
     return <div className="dashboard">Loading profile...</div>;
   }
+
+  /* ===== XP PROGRESS ===== */
+  const nextLevelXP = 200;
+
+  const progress = Math.min(
+    ((volunteer.xp || 0) / nextLevelXP) * 100,
+    100
+  );
 
   return (
     <div className="dashboard">
@@ -48,6 +86,33 @@ export default function VolunteerProfile() {
             {volunteer.available ? "Available" : "Deployed"}
           </strong>
         </p>
+      </div>
+
+      {/* ===== XP + LEVEL ===== */}
+      <div className="card">
+        <h3>⭐ Volunteer Progress</h3>
+
+        <p>
+          Level:
+          <strong> {volunteer.level || "Rookie"}</strong>
+        </p>
+
+        <p>
+          XP:
+          <strong> {volunteer.xp || 0}</strong>
+        </p>
+
+        {/* Progress Bar */}
+        <div style={{background:"#eee", height:12, borderRadius:8}}>
+          <div
+            style={{
+              width:`${progress}%`,
+              height:"100%",
+              background:"#4CAF50",
+              borderRadius:8
+            }}
+          />
+        </div>
       </div>
 
       {/* ===== CURRENT ASSIGNMENT ===== */}
@@ -75,6 +140,16 @@ export default function VolunteerProfile() {
         </p>
 
         <p>
+          People Helped:
+          <strong> {volunteer.totalPeopleHelped || 0}</strong>
+        </p>
+
+        <p>
+          Hours Served:
+          <strong> {volunteer.totalHours || 0}</strong>
+        </p>
+
+        <p>
           Badges Earned:
           <strong> {volunteer.badges?.length || 0}</strong>
         </p>
@@ -93,7 +168,7 @@ export default function VolunteerProfile() {
 
               <div key={i} className="badge">
 
-                <span style={{fontSize: "32px"}}>{b.icon}</span>
+                <span style={{fontSize:"32px"}}>{b.icon}</span>
 
                 <h4>{b.name}</h4>
                 <small>{b.description}</small>

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import API from "../../api/api";
 import VolunteerMap from "./VolunteerMap";
 import "../../styles/dashboard.css";
+import socket from "../../utils/sockets";
 
 export default function VolunteerDashboard() {
 
@@ -14,6 +15,36 @@ export default function VolunteerDashboard() {
   const volunteerId = localStorage.getItem("volunteerId");
   const navigate = useNavigate();
 
+  /* ================= SOCKET SETUP ================= */
+  useEffect(() => {
+
+    if (!volunteerId || volunteerId === "null") return;
+
+    /* ⭐ FIXED ROOM NAME */
+    socket.emit("joinVolunteer", volunteerId);
+
+    /* APPROVED */
+    const approvedListener = (data) => {
+      alert(`✅ Report Approved! XP +${data.xpEarned}`);
+      loadDashboard();
+    };
+
+    /* REJECTED */
+    const rejectedListener = (data) => {
+      alert(`❌ Report Rejected: ${data.feedback}`);
+    };
+
+    socket.on("reportApproved", approvedListener);
+    socket.on("reportRejected", rejectedListener);
+
+    return () => {
+      socket.off("reportApproved", approvedListener);
+      socket.off("reportRejected", rejectedListener);
+    };
+
+  }, [volunteerId]);
+
+  /* ================= INITIAL LOAD ================= */
   useEffect(() => {
 
     if (!volunteerId || volunteerId === "null") return;
@@ -72,7 +103,6 @@ export default function VolunteerDashboard() {
   return (
     <div className="dashboard">
 
-      {/* HEADER */}
       <div style={{ display: "flex", justifyContent: "space-between" }}>
         <h2>🤝 Volunteer Control Center</h2>
 
@@ -84,7 +114,6 @@ export default function VolunteerDashboard() {
         </button>
       </div>
 
-      {/* ASSIGNED CAMP */}
       {assignedCamp ? (
         <div className="card danger">
 
@@ -93,7 +122,6 @@ export default function VolunteerDashboard() {
           <p><b>Area:</b> {assignedCamp.area}</p>
           <p><b>Risk Level:</b> {assignedCamp.riskLevel}</p>
 
-          {/* ⭐ NEW REPORT BUTTON */}
           <button
             onClick={() =>
               navigate(`/volunteer/report/${assignedCamp._id}`)
@@ -114,7 +142,6 @@ export default function VolunteerDashboard() {
         </div>
       )}
 
-      {/* CAMPS LIST */}
       <div className="grid">
 
         {camps.map(c => (
@@ -135,7 +162,6 @@ export default function VolunteerDashboard() {
 
       </div>
 
-      {/* MAP */}
       <VolunteerMap camps={camps} />
 
     </div>

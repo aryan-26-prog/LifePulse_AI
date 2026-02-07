@@ -1,36 +1,57 @@
 const WorkReport = require("../models/VolunteerWorkReport");
 const Volunteer = require("../models/Volunteer");
 const { generateBadges } = require("../utils/badgeEngine");
+const { calculateXP, calculateLevel } = require("../utils/xpEngine");
 
-// VOLUNTEER SUBMIT REPORT 
+/* ================= VOLUNTEER SUBMIT REPORT ================= */
 exports.submitWorkReport = async (req, res) => {
 
   try {
 
+    const volunteerId = req.params.volunteerId;
     const { description, peopleHelped, hoursWorked, campId } = req.body;
+
+    if (!volunteerId)
+      return res.status(400).json({ message: "Volunteer ID missing" });
 
     if (!campId)
       return res.status(400).json({ message: "Camp ID required" });
 
-    const report = await WorkReport.create({
+    /* ⭐ SAFE IMAGE HANDLING */
+    let images = [];
 
-      volunteer: req.params.volunteerId,
+    if (req.files && req.files.length > 0) {
+      images = req.files.map(file => file.path);
+    }
+
+    const report = await WorkReport.create({
+      volunteer: volunteerId,
       camp: campId,
       description,
-      peopleHelped,
-      hoursWorked,
-
-      images: req.files ? req.files.map(f => f.path) : []
+      peopleHelped: Number(peopleHelped || 0),
+      hoursWorked: Number(hoursWorked || 0),
+      images
     });
+
+    /* ⭐ SOCKET EMIT */
+    const io = req.app.get("io");
+
+    if (io) {
+      io.to("ngoRoom").emit("newWorkReport", {
+        campId,
+        report
+      });
+    }
 
     res.json(report);
 
   } catch (err) {
 
-    console.error("REPORT SUBMIT ERROR:", err.message);
+    console.error("REPORT SUBMIT ERROR:", err);
 
     res.status(500).json({
-      message: "Report submission failed"
+      message: "Report submission failed",
+      error: err.message
     });
   }
 };
@@ -43,70 +64,114 @@ exports.approveReport = async (req, res) => {
   try {
 
     const report = await WorkReport.findById(req.params.reportId)
-      .populate("volunteer");
+      .populate("volunteer")
+      .populate("camp");
 
-    if (!report)
+    if (!report) {
       return res.status(404).json({ message: "Report not found" });
+    }
 
-    if (!report.volunteer)
-      return res.status(404).json({ message: "Volunteer not found" });
-
-    if (report.status === "APPROVED")
+    if (report.status === "APPROVED") {
       return res.json({ message: "Already approved" });
+    }
+
+    report.status = "APPROVED";
 
     const volunteer = report.volunteer;
 
-    /* ⭐ SAFE DEFAULTS */
-    if (!volunteer.completedCamps) volunteer.completedCamps = 0;
-    if (!volunteer.badges) volunteer.badges = [];
+    /* ================= CAMP COMPLETION ================= */
+    volunteer.completedCamps = (volunteer.completedCamps || 0) + 1;
 
-    /* ⭐ UPDATE WORK COUNT */
-    volunteer.completedCamps += 1;
+    /* ================= IMPACT STATS ================= */
+    volunteer.totalPeopleHelped =
+      (volunteer.totalPeopleHelped || 0) + (report.peopleHelped || 0);
 
-    /* ⭐ GENERATE BADGES */
+    volunteer.totalHours =
+      (volunteer.totalHours || 0) + (report.hoursWorked || 0);
+
+    /* ================= XP CALC ================= */
+    const xpEarned = calculateXP({
+      hoursWorked: report.hoursWorked || 0,
+      peopleHelped: report.peopleHelped || 0,
+      imagesCount: report.images?.length || 0
+    });
+
+    volunteer.xp = (volunteer.xp || 0) + xpEarned;
+
+    /* ================= LEVEL ================= */
+    volunteer.level = calculateLevel(volunteer.xp);
+
+    /* ================= BADGES ================= */
     const newBadges = generateBadges(volunteer.completedCamps);
 
     newBadges.forEach(b => {
 
-      const exists = volunteer.badges.some(
+      const exists = volunteer.badges?.some(
         existing => existing.name === b.name
       );
 
-      if (!exists) volunteer.badges.push(b);
+      if (!exists) {
+        volunteer.badges.push(b);
+      }
     });
-
-    report.status = "APPROVED";
 
     await volunteer.save();
     await report.save();
 
+    /* ================= SOCKET REALTIME ================= */
+    const io = req.app.get("io");
+
+    if (io) {
+
+      io.to(volunteer._id.toString()).emit("reportApproved", {
+        reportId: report._id,
+        xpEarned,
+        level: volunteer.level
+      });
+
+    }
+
     res.json({
-      message: "Report approved & badge granted",
-      volunteer
+      message: "Report approved",
+      xpEarned
     });
 
   } catch (err) {
 
-    console.error("APPROVE REPORT ERROR:", err.message);
+    console.error("APPROVE REPORT ERROR:", err);
 
     res.status(500).json({
-      message: "Approval failed"
+      message: "Approval failed",
+      error: err.message
     });
   }
 };
 
 
-// NGO REJECT 
+
+
+/* ================= NGO REJECT ================= */
+/* ================= NGO REJECT ================= */
 exports.rejectReport = async (req, res) => {
 
   try {
 
-    const report = await WorkReport.findById(req.params.reportId);
+    const io = req.app.get("io"); // ⭐ FIXED
+
+    const report = await WorkReport.findById(req.params.reportId)
+      .populate("volunteer");
 
     report.status = "REJECTED";
     report.ngoFeedback = req.body.feedback;
 
     await report.save();
+
+    /* ⭐ REALTIME VOLUNTEER UPDATE */
+    if (io) {
+      io.to(report.volunteer._id.toString()).emit("reportRejected", {
+        feedback: report.ngoFeedback
+      });
+    }
 
     res.json({ message: "Report rejected" });
 
@@ -115,6 +180,10 @@ exports.rejectReport = async (req, res) => {
   }
 };
 
+
+
+
+/* ================= GET CAMP REPORTS ================= */
 exports.getCampReports = async (req, res) => {
 
   const reports = await WorkReport.find({
@@ -127,4 +196,3 @@ exports.getCampReports = async (req, res) => {
     data: reports
   });
 };
-

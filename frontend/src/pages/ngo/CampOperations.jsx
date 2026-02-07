@@ -3,6 +3,7 @@ import { useParams } from "react-router-dom";
 import API from "../../api/api";
 import Navbar from "../../components/Navbar";
 import "../../styles/dashboard.css";
+import socket from "../../utils/sockets";
 
 export default function CampOperations() {
 
@@ -19,25 +20,23 @@ export default function CampOperations() {
 
   const [message, setMessage] = useState("");
 
-  /* ================= FETCH CAMP ================= */
   const fetchCamp = async () => {
     const res = await API.get(`/ngo/camp/${campId}`);
     setCamp(res.data);
   };
 
-  /* ================= FETCH VOLUNTEERS ================= */
   const fetchVolunteers = async () => {
     const res = await API.get("/ngo/volunteers");
     setVolunteers(res.data.data.filter(v => v.available));
   };
 
-  /* ⭐ FETCH REPORTS */
   const fetchReports = async () => {
     const res = await API.get(`/work-report/camp/${campId}`);
     setReports(res.data.data || []);
   };
 
   useEffect(() => {
+
     const load = async () => {
       try {
         await Promise.all([
@@ -51,10 +50,33 @@ export default function CampOperations() {
     };
 
     load();
+
   }, [campId]);
 
-  /* ================= SELECT VOLUNTEER ================= */
+  /* ================= SOCKET REALTIME ================= */
+  useEffect(() => {
+
+    socket.emit("joinNGO");
+
+    const newReportListener = (data) => {
+
+      if (data.campId === campId) {
+        setMessage("📢 New volunteer report submitted");
+        fetchReports();
+      }
+
+    };
+
+    socket.on("newWorkReport", newReportListener);
+
+    return () => {
+      socket.off("newWorkReport", newReportListener);
+    };
+
+  }, [campId]);
+
   const toggleVolunteer = (id) => {
+
     if (selectedVolunteers.includes(id)) {
       setSelectedVolunteers(prev => prev.filter(v => v !== id));
     } else {
@@ -62,12 +84,13 @@ export default function CampOperations() {
     }
   };
 
-  /* ================= ASSIGN ================= */
   const assignVolunteers = async () => {
 
-    if (!selectedVolunteers.length) return alert("Select volunteers");
+    if (!selectedVolunteers.length)
+      return alert("Select volunteers");
 
     try {
+
       setAssigning(true);
 
       const res = await API.post("/ngo/assign-volunteers", {
@@ -78,6 +101,7 @@ export default function CampOperations() {
       setMessage(`✅ ${res.data.count} volunteers assigned`);
 
       setSelectedVolunteers([]);
+
       await fetchCamp();
       await fetchVolunteers();
 
@@ -86,8 +110,8 @@ export default function CampOperations() {
     }
   };
 
-  /* ================= CLOSE CAMP ================= */
   const closeCamp = async () => {
+
     if (!window.confirm("Close this camp?")) return;
 
     try {
@@ -99,13 +123,11 @@ export default function CampOperations() {
     }
   };
 
-  /* ⭐ APPROVE REPORT */
   const approveReport = async (id) => {
     await API.put(`/work-report/approve/${id}`);
     await fetchReports();
   };
 
-  /* ⭐ REJECT REPORT */
   const rejectReport = async (id) => {
 
     const feedback = prompt("Enter rejection reason");
@@ -125,17 +147,20 @@ export default function CampOperations() {
 
         <h2>🏕️ Relief Camp Operations</h2>
 
-        {message && <div className="success-banner">{message}</div>}
+        {message && (
+          <div className="success-banner">
+            {message}
+          </div>
+        )}
 
-        {/* CAMP INFO */}
         <div className="card">
           <h3>{camp.area}</h3>
           <p>Status: {camp.status}</p>
           <p>Risk: {camp.riskLevel}</p>
         </div>
 
-        {/* SELECT VOLUNTEERS */}
         <div className="card" style={{ marginTop: 20 }}>
+
           <h3>Select Volunteers</h3>
 
           {volunteers.map(v => (
@@ -154,10 +179,11 @@ export default function CampOperations() {
               Assign Selected Volunteers
             </button>
           )}
+
         </div>
 
-        {/* ASSIGNED VOLUNTEERS */}
         <div className="card" style={{ marginTop: 20 }}>
+
           <h3>Assigned Volunteers</h3>
 
           {camp.volunteerAssigned?.map(v => (
@@ -171,9 +197,9 @@ export default function CampOperations() {
               Close Camp
             </button>
           )}
+
         </div>
 
-        {/* ⭐ NGO REPORT REVIEW PANEL */}
         <div className="card" style={{ marginTop: 20 }}>
 
           <h3>📋 Volunteer Work Reports</h3>
@@ -182,14 +208,10 @@ export default function CampOperations() {
             <p>No reports submitted yet</p>
           ) : (
             reports.map(r => (
-              <div
-                key={r._id}
-                style={{
-                  borderBottom: "1px solid #eee",
-                  marginBottom: 15
-                }}
-              >
+              <div key={r._id} style={{ borderBottom: "1px solid #eee", marginBottom: 15 }}>
+
                 <b>{r.volunteer?.name}</b>
+
                 <p>{r.description}</p>
 
                 <p>
@@ -197,7 +219,6 @@ export default function CampOperations() {
                   ⏱ Hours: {r.hoursWorked}
                 </p>
 
-                {/* Images */}
                 {r.images?.map(img => (
                   <img
                     key={img}

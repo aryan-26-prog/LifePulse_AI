@@ -6,7 +6,8 @@ const {
   getVolunteerDashboard,
   joinCamp,
   leaveCamp,
-  getRegisteredVolunteers
+  getRegisteredVolunteers,
+  getVolunteerProfile
 } = require("../controllers/volunteerController");
 
 /*  STATIC ROUTES FIRST */
@@ -17,5 +18,7 @@ router.get("/active-camps", getActiveCamps);
 router.get("/:id/dashboard", getVolunteerDashboard);
 router.put("/:id/join", joinCamp);
 router.put("/:id/leave", leaveCamp);
+router.get("/:id/profile", getVolunteerProfile);
+
 
 module.exports = router;

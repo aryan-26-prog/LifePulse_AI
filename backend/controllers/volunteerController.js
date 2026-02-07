@@ -174,3 +174,11 @@ exports.getRegisteredVolunteers = async (req, res) => {
     });
   }
 };
+
+
+exports.getVolunteerProfile = async (req, res) => {
+
+  const volunteer = await Volunteer.findById(req.params.id);
+
+  res.json(volunteer);
+};
