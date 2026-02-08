@@ -527,13 +527,6 @@ export default function NGODashboard() {
                     </div>
                     
                     <div className="action-buttons">
-                      <button
-                        className="view-btn"
-                        onClick={() => navigate(`/area/${encodeURIComponent(area.area)}`)}
-                      >
-                        <Eye size={16} />
-                        View Area
-                      </button>
                       
                       {(area.risk === "HIGH" || area.risk === "SEVERE") && (
                         <button

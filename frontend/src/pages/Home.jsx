@@ -266,18 +266,9 @@ export default function Home() {
             {/* CTA Section */}
             <div className="cta-section">
               <a href="/select-role" className="primary-cta">
-                <span>Launch Dashboard</span>
+                <span>Launch Relect Role Page</span>
                 <ChevronRight size={20} />
               </a>
-              
-              <div className="cta-options">
-                <a href="#" className="secondary-cta">
-                  <span>View Demo</span>
-                </a>
-                <a href="#" className="tertiary-cta">
-                  <span>Request Access</span>
-                </a>
-              </div>
             </div>
           </div>
           
