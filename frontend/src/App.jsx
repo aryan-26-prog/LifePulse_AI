@@ -23,71 +23,84 @@ import CampMap from "./pages/ngo/CampMap";
 import NGOManagement from "./pages/admin/NGOManagement";
 import ReportAnalytics from "./pages/admin/ReportAnalytics";
 
+/* Volunteer pages */
 import VolunteerDashboard from "./pages/volunteer/VolunteerDashboard";
 import VolunteerProfile from "./pages/volunteer/VolunteerProfile";
 import SubmitReport from "./pages/volunteer/SubmitReport";
 
+/* Assistant */
+import AIAssistant from "./components/AIAssistant";
+
+/* Auth */
 import ProtectedRoute from "./auth/ProtectedRoute";
 
 export default function App() {
   return (
-    <Routes>
-      {/* Landing */}
-      <Route path="/" element={<Home />} />
-      <Route path="/select-role" element={<RoleSelect />} />
+    <>
+      {/* ROUTES */}
+      <Routes>
 
-      {/* ========== CITIZEN FLOW (NO AUTH) ========== */}
-      <Route path="/citizen/checkin" element={<HealthCheckin />} />
-      <Route path="/citizen/analyzing" element={<Processing />} />
-      <Route path="/citizen/map" element={<CityMap />} />
-      <Route path="/citizen/area/:areaName" element={<AreaDetails />} />
-      <Route path="/verify-otp" element={<OTPVerify />} />
+        {/* Landing */}
+        <Route path="/" element={<Home />} />
+        <Route path="/select-role" element={<RoleSelect />} />
 
+        {/* ========== CITIZEN FLOW (NO AUTH) ========== */}
+        <Route path="/citizen/checkin" element={<HealthCheckin />} />
+        <Route path="/citizen/analyzing" element={<Processing />} />
+        <Route path="/citizen/map" element={<CityMap />} />
+        <Route path="/citizen/area/:areaName" element={<AreaDetails />} />
+        <Route path="/verify-otp" element={<OTPVerify />} />
 
-      {/* ========== AUTH ========== */}
-      <Route path="/register" element={<Register />} />
-      <Route path="/login" element={<Login />} />
+        {/* ========== AUTH ========== */}
+        <Route path="/register" element={<Register />} />
+        <Route path="/login" element={<Login />} />
 
-      {/* ========== NGO (PROTECTED) ========== */}
-      <Route
-        path="/ngo"
-        element={
-          <ProtectedRoute>
-            <NGODashboard />
-          </ProtectedRoute>
-        }
-      />
-      <Route
-        path="/ngo/camp/:campId"
-        element={<CampOperations />}
-      />
-      <Route path="/ngo/camp-map" element={<CampMap />} />
+        {/* ========== NGO (PROTECTED) ========== */}
+        <Route
+          path="/ngo"
+          element={
+            <ProtectedRoute>
+              <NGODashboard />
+            </ProtectedRoute>
+          }
+        />
 
-      {/* ========== ADMIN (PROTECTED) ========== */}
-      <Route
-        path="/admin"
-        element={
-          <ProtectedRoute>
-            <AdminDashboard />
-          </ProtectedRoute>
-        }
-      />
+        <Route
+          path="/ngo/camp/:campId"
+          element={<CampOperations />}
+        />
 
-      
-      <Route path="/admin/ngos" element={<NGOManagement />} />
-      <Route path="/admin/analytics" element={<ReportAnalytics />} />
+        <Route
+          path="/ngo/camp-map"
+          element={<CampMap />}
+        />
 
-      <Route path="/volunteer" element={<VolunteerDashboard />} />
-      <Route path="/volunteer/profile" element={<VolunteerProfile />} />
-      <Route
-        path="/volunteer/report/:campId"
-        element={<SubmitReport />}
-      />
+        {/* ========== ADMIN (PROTECTED) ========== */}
+        <Route
+          path="/admin"
+          element={
+            <ProtectedRoute>
+              <AdminDashboard />
+            </ProtectedRoute>
+          }
+        />
 
+        <Route path="/admin/ngos" element={<NGOManagement />} />
+        <Route path="/admin/analytics" element={<ReportAnalytics />} />
 
+        {/* ========== VOLUNTEER ========== */}
+        <Route path="/volunteer" element={<VolunteerDashboard />} />
+        <Route path="/volunteer/profile" element={<VolunteerProfile />} />
+        <Route
+          path="/volunteer/report/:campId"
+          element={<SubmitReport />}
+        />
 
+      </Routes>
 
-      {/* Optional: 404 fallback later */}
-    </Routes>
+      {/* ⭐ GLOBAL AI ASSISTANT (IMPORTANT) */}
+      <AIAssistant />
+
+    </>
   );
 }

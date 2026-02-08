@@ -1,7 +1,7 @@
 const axios = require("axios");
 const EnvLog = require("../models/EnvLog");
 
-// ================= AQI CALC =================
+//  AQI CALC 
 function calculateAQI(pm25) {
   if (pm25 <= 30) return Math.round((pm25 / 30) * 50);
   if (pm25 <= 60) return Math.round(((pm25 - 31) / 29) * 50 + 51);
@@ -11,7 +11,7 @@ function calculateAQI(pm25) {
   return 500;
 }
 
-// ================= AQI META =================
+// AQI META 
 function aqiMeta(aqi) {
   if (aqi <= 50) return { label: "Good 🟢" };
   if (aqi <= 100) return { label: "Moderate 🟡" };
@@ -21,7 +21,7 @@ function aqiMeta(aqi) {
 }
 
 
-// ⭐ NEW → AQI BASED RISK CLASSIFICATION
+// AQI BASED RISK CLASSIFICATION
 function classifyRisk(aqi) {
 
   if (aqi <= 50) return "LOW";
@@ -31,7 +31,7 @@ function classifyRisk(aqi) {
 }
 
 
-// ================= SMART SUGGESTION ENGINE =================
+// SMART SUGGESTION ENGINE 
 function generateSmartSuggestions({ aqi, pollutants, weather }) {
 
   const pm25 = pollutants.pm2_5 || 0;
@@ -70,7 +70,7 @@ function generateSmartSuggestions({ aqi, pollutants, weather }) {
 }
 
 
-// ================= HEALTH IMPACT =================
+// HEALTH IMPACT 
 function calculateHealthImpact(aqi, pollutants, weather) {
 
   const pm25 = pollutants.pm2_5 || 0;
@@ -84,8 +84,8 @@ function calculateHealthImpact(aqi, pollutants, weather) {
   let status =
     score < 30 ? "Low Risk 🟢" :
     score < 60 ? "Moderate Risk 🟡" :
-    score < 80 ? "High Risk 🟠" :
-    "Critical Risk 🔴";
+    score < 80 ? "High Risk 🔴" :
+    "Critical Risk 🟣";
 
   const suggestions = generateSmartSuggestions({
     aqi,
@@ -97,7 +97,7 @@ function calculateHealthImpact(aqi, pollutants, weather) {
 }
 
 
-// ================= BY AREA =================
+// BY AREA 
 exports.getEnvironmentByArea = async (req, res) => {
   try {
 
@@ -134,7 +134,7 @@ exports.getEnvironmentByArea = async (req, res) => {
     const meta = aqiMeta(aqi);
     const health = calculateHealthImpact(aqi, pollutants, weather);
 
-    // ⭐ NEW RISK OUTPUT
+    //  NEW RISK OUTPUT
     const risk = classifyRisk(aqi);
 
     await EnvLog.create({ area, aqi, pollutants });
@@ -146,7 +146,7 @@ exports.getEnvironmentByArea = async (req, res) => {
         label: meta.label,
         pollutants
       },
-      risk,          // ⭐ NEW FIELD
+      risk,          
       health
     });
 
@@ -157,7 +157,7 @@ exports.getEnvironmentByArea = async (req, res) => {
 };
 
 
-// ================= BY COORDS =================
+// location BY COORDS 
 exports.getEnvironmentByCoords = async (req, res) => {
   try {
 
@@ -219,7 +219,7 @@ exports.getEnvironmentByCoords = async (req, res) => {
 };
 
 
-// ================= HISTORY =================
+// HISTORY 
 exports.getAQIHistory = async (req, res) => {
 
   const area = req.query.area.toLowerCase();
