@@ -115,7 +115,7 @@ def calculate_risk(health, env, history=None):
     if history is None:
         history = []
 
-    base_aqi = float(env.get("aqi", 0))
+    real_aqi = min(float(env.get("aqi", 0)), 500)
 
     weather = {
         "temperature": env.get("temperature", 25),
@@ -123,24 +123,23 @@ def calculate_risk(health, env, history=None):
         "windSpeed": env.get("windSpeed", 3)
     }
 
-    # ===== Weather + Trend Adjusted AQI =====
-    weather_adj = base_aqi * weather_modifier(weather)
-    trend_adj = weather_adj * trend_factor(base_aqi, history)
+    # REALISTIC modifiers (risk only, not AQI)
+    weather_risk = weather_modifier(weather)
+    trend_risk = trend_factor(real_aqi, history)
 
-    adjusted_aqi = min(500, trend_adj)
+    env_score = normalize(real_aqi, 500) * weather_risk * trend_risk
+    env_score = min(env_score, 1)
 
-    # ===== Risk Classification =====
-    risk = classify_risk(adjusted_aqi)
-
-    # ===== Scores =====
-    env_score = normalize(adjusted_aqi, 500)
     human_score = human_vulnerability(health)
 
     confidence = (env_score * 0.7) + (human_score * 0.3)
+    confidence = min(confidence, 1)
+
+    risk = classify_risk(real_aqi)
 
     return {
         "risk": risk,
-        "finalAQI": int(adjusted_aqi),
+        "finalAQI": int(real_aqi),
         "envScore": round(env_score, 2),
         "humanScore": round(human_score, 2),
         "confidence": round(confidence, 2)
