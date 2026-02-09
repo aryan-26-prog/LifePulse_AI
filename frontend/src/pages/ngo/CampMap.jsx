@@ -553,13 +553,6 @@ export default function CampMap() {
                                       </>
                                     )}
                                   </button>
-                                  <button
-                                    className="popup-btn outline"
-                                    onClick={() => navigate(`/area/${encodeURIComponent(area.area)}`)}
-                                  >
-                                    <Eye size={14} />
-                                    View Details
-                                  </button>
                                 </div>
                               ) : (
                                 <div className="monitoring-info">

@@ -430,36 +430,7 @@ export default function VolunteerProfile() {
             {/* Mission Card */}
             {volunteer.assignedCamp ? (
               <div className="mission-card active">
-                <div className="mission-header">
-                  <MapPin size={20} />
-                  <div className="mission-title">
-                    <h4>{volunteer.assignedCamp.area}</h4>
-                    <span className="mission-id">CAMP-{volunteer.assignedCamp.id?.slice(-6)}</span>
-                  </div>
-                  <div className={`risk-badge risk-${volunteer.assignedCamp.riskLevel?.toLowerCase()}`}>
-                    {volunteer.assignedCamp.riskLevel}
-                  </div>
-                </div>
                 
-                <div className="mission-details">
-                  <div className="mission-stat">
-                    <Shield size={16} />
-                    <span>Status: {volunteer.assignedCamp.status}</span>
-                  </div>
-                  <div className="mission-stat">
-                    <Activity size={16} />
-                    <span>Health Index: {Math.floor(Math.random() * 40) + 60}%</span>
-                  </div>
-                  <div className="mission-stat">
-                    <TrendingUp size={16} />
-                    <span>Priority: High</span>
-                  </div>
-                </div>
-                
-                <button className="mission-report-btn">
-                  <ChevronRight size={18} />
-                  <span>Submit Report</span>
-                </button>
               </div>
             ) : (
               <div className="mission-card inactive">

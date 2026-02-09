@@ -45,7 +45,10 @@ const BackgroundAnimation = () => {
 
   useEffect(() => {
     const canvas = canvasRef.current;
+    if (!canvas) return;
+    
     const ctx = canvas.getContext('2d');
+    if (!ctx) return;
     
     let width = canvas.width = window.innerWidth;
     let height = canvas.height = window.innerHeight;
@@ -210,12 +213,16 @@ export default function AdminDashboard() {
         API.get("/admin/reports")
       ]);
 
-      setStats(dash.data.stats);
-      setAreaStats(areas.data.data || []);
-      setAIRisk(risk.data.data || []);
-      setReports(rep.data.data || []);
+      setStats(dash.data?.stats || {});
+      setAreaStats(areas.data?.data || []);
+      setAIRisk(risk.data?.data || []);
+      setReports(rep.data?.data || []);
     } catch (err) {
       console.error("Failed to load dashboard:", err);
+      setStats({});
+      setAreaStats([]);
+      setAIRisk([]);
+      setReports([]);
     } finally {
       setLoading(false);
     }
@@ -259,26 +266,52 @@ export default function AdminDashboard() {
     }
   };
 
-  // Prepare chart data
-  const stressSleepChart = areaStats.map(a => ({
-    area: a.area?.substring(0, 15) + (a.area?.length > 15 ? "..." : ""),
+  // Prepare chart data with safety checks
+  const stressSleepChart = Array.isArray(areaStats) ? areaStats.map(a => ({
+    area: (a.area?.substring(0, 15) || "Unknown") + (a.area?.length > 15 ? "..." : ""),
     Stress: parseFloat(a.avgStress) || 0,
     Sleep: parseFloat(a.avgSleep) || 0
-  }));
+  })) : [];
 
-  const riskChart = aiRisk.map(r => ({
-    name: r.area?.substring(0, 10) + (r.area?.length > 10 ? "..." : ""),
-    value: r.risk === "HIGH" ? 100 : r.risk === "MEDIUM" ? 60 : 30,
-    color: r.risk === "HIGH" ? "#ef4444" : r.risk === "MEDIUM" ? "#f59e0b" : "#10b981"
-  }));
+  const riskChart = Array.isArray(aiRisk) ? aiRisk.map(item => {
+  let riskValue;
+  
+  // Check if risk is nested object
+  if (item && typeof item.risk === 'object') {
+    riskValue = item.risk?.risk || item.risk?.level || "LOW";
+  } else {
+    riskValue = item.risk || "LOW";
+  }
+  
+  const riskValueUpper = typeof riskValue === 'string' ? riskValue.toUpperCase() : "LOW";
+  
+  return {
+    name: (item.area?.substring(0, 10) || "Unknown") + (item.area?.length > 10 ? "..." : ""),
+    value: riskValueUpper === "HIGH" ? 100 : riskValueUpper === "MEDIUM" ? 60 : 30,
+    color: riskValueUpper === "HIGH" ? "#ef4444" : riskValueUpper === "MEDIUM" ? "#f59e0b" : "#10b981"
+  };
+}) : [];
 
   const adminStats = stats ? [
-    { icon: <FileText size={20} />, label: "Health Reports", value: stats.totalHealthReports, color: "#3b82f6", change: "+12%" },
-    { icon: <Building2 size={20} />, label: "NGOs", value: stats.totalNGOs, color: "#8b5cf6", change: "+3" },
-    { icon: <Users size={20} />, label: "Areas", value: areaStats.length, color: "#10b981", change: "+2" },
-    { icon: <AlertTriangle size={20} />, label: "Risk Zones", value: aiRisk.filter(r => r.risk === "HIGH").length, color: "#ef4444", change: "Critical" }
-  ] : [];
-
+  { icon: <FileText size={20} />, label: "Health Reports", value: stats.totalHealthReports || 0, color: "#3b82f6", change: "+12%" },
+  { icon: <Building2 size={20} />, label: "NGOs", value: stats.totalNGOs || 0, color: "#8b5cf6", change: "+3" },
+  { icon: <Users size={20} />, label: "Areas", value: areaStats.length || 0, color: "#10b981", change: "+2" },
+  { 
+    icon: <AlertTriangle size={20} />, 
+    label: "Risk Zones", 
+    value: aiRisk.filter(item => {
+      let riskValue;
+      if (item && typeof item.risk === 'object') {
+        riskValue = item.risk?.risk || item.risk?.level;
+      } else {
+        riskValue = item.risk;
+      }
+      return typeof riskValue === 'string' ? riskValue.toUpperCase() === "HIGH" : false;
+    }).length || 0, 
+    color: "#ef4444", 
+    change: "Critical" 
+  }
+] : [];
   if (loading) {
     return (
       <div className="industrial-dashboard">
@@ -383,13 +416,6 @@ export default function AdminDashboard() {
                 <Users size={18} />
                 Manage NGOs
               </button>
-              <button 
-                className="action-btn outline"
-                onClick={() => navigate("/admin/settings")}
-              >
-                <Settings size={18} />
-                System Settings
-              </button>
             </div>
           </div>
         </div>
@@ -408,21 +434,14 @@ export default function AdminDashboard() {
             onClick={() => setActiveTab('areas')}
           >
             <MapPin size={16} />
-            Area Statistics ({areaStats.length})
+            Area Statistics ({areaStats.length || 0})
           </button>
           <button 
             className={`tab-btn ${activeTab === 'reports' ? 'active' : ''}`}
             onClick={() => setActiveTab('reports')}
           >
             <FileText size={16} />
-            Reports ({reports.length})
-          </button>
-          <button 
-            className={`tab-btn ${activeTab === 'risk' ? 'active' : ''}`}
-            onClick={() => setActiveTab('risk')}
-          >
-            <AlertTriangle size={16} />
-            Risk Analysis
+            Reports ({reports.length || 0})
           </button>
         </div>
 
@@ -483,42 +502,34 @@ export default function AdminDashboard() {
                   <span className="chart-subtitle">Risk level analysis</span>
                 </div>
                 <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={riskChart}
-                      dataKey="value"
-                      outerRadius={100}
-                      innerRadius={60}
-                      paddingAngle={2}
-                    >
-                      {riskChart.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.color} />
-                      ))}
-                    </Pie>
-                    <Tooltip
-                      contentStyle={{
-                        background: '#1e293b',
-                        border: '1px solid #475569',
-                        borderRadius: '8px'
-                      }}
-                    />
-                    <Legend />
-                  </PieChart>
+                  {riskChart.length > 0 ? (
+                    <PieChart>
+                      <Pie
+                        data={riskChart}
+                        dataKey="value"
+                        outerRadius={100}
+                        innerRadius={60}
+                        paddingAngle={2}
+                      >
+                        {riskChart.map((entry, index) => (
+                          <Cell key={`cell-${index}`} fill={entry.color} />
+                        ))}
+                      </Pie>
+                      <Tooltip
+                        contentStyle={{
+                          background: '#1e293b',
+                          border: '1px solid #475569',
+                          borderRadius: '8px'
+                        }}
+                      />
+                      <Legend />
+                    </PieChart>
+                  ) : (
+                    <div className="no-data-chart">
+                      <p>No risk data available</p>
+                    </div>
+                  )}
                 </ResponsiveContainer>
-                <div className="chart-legend">
-                  <div className="legend-item">
-                    <div className="legend-dot" style={{ background: '#ef4444' }}></div>
-                    <span>High Risk</span>
-                  </div>
-                  <div className="legend-item">
-                    <div className="legend-dot" style={{ background: '#f59e0b' }}></div>
-                    <span>Medium Risk</span>
-                  </div>
-                  <div className="legend-item">
-                    <div className="legend-dot" style={{ background: '#10b981' }}></div>
-                    <span>Low Risk</span>
-                  </div>
-                </div>
               </div>
             </div>
           </div>
@@ -530,7 +541,7 @@ export default function AdminDashboard() {
               <div className="table-header">
                 <h3>Area Health Statistics</h3>
                 <div className="table-actions">
-                  <span className="table-count">{areaStats.length} areas</span>
+                  <span className="table-count">{areaStats.length || 0} areas</span>
                   <button className="export-btn" onClick={downloadCSV}>
                     <Download size={14} />
                     Export
@@ -565,52 +576,66 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {areaStats.map(a => (
-                      <tr key={a.area}>
-                        <td className="area-cell">
-                          <div className="area-name">{a.area}</div>
-                        </td>
-                        <td>
-                          <span className="stat-badge">{a.totalReports}</span>
-                        </td>
-                        <td>
-                          <div className="progress-cell">
-                            <div className="progress-bar">
-                              <div 
-                                className="progress-fill stress"
-                                style={{ width: `${Math.min(100, (parseFloat(a.avgStress) || 0) * 10)}%` }}
-                              ></div>
+                    {Array.isArray(areaStats) && areaStats.length > 0 ? (
+                      areaStats.map((a, index) => (
+                        <tr key={a.area || index}>
+                          <td className="area-cell">
+                            <div className="area-name">{a.area || "Unknown Area"}</div>
+                          </td>
+                          <td>
+                            <span className="stat-badge">{a.totalReports || 0}</span>
+                          </td>
+                          <td>
+                            <div className="progress-cell">
+                              <div className="progress-bar">
+                                <div 
+                                  className="progress-fill stress"
+                                  style={{ width: `${Math.min(100, (parseFloat(a.avgStress) || 0) * 10)}%` }}
+                                ></div>
+                              </div>
+                              <span className="progress-value">{a.avgStress || "0"}</span>
                             </div>
-                            <span className="progress-value">{a.avgStress || "0"}</span>
-                          </div>
-                        </td>
-                        <td>
-                          <div className="progress-cell">
-                            <div className="progress-bar">
-                              <div 
-                                className="progress-fill sleep"
-                                style={{ width: `${Math.min(100, (parseFloat(a.avgSleep) || 0) * 20)}%` }}
-                              ></div>
+                          </td>
+                          <td>
+                            <div className="progress-cell">
+                              <div className="progress-bar">
+                                <div 
+                                  className="progress-fill sleep"
+                                  style={{ width: `${Math.min(100, (parseFloat(a.avgSleep) || 0) * 20)}%` }}
+                                ></div>
+                              </div>
+                              <span className="progress-value">{a.avgSleep || "0"} hrs</span>
                             </div>
-                            <span className="progress-value">{a.avgSleep || "0"} hrs</span>
-                          </div>
-                        </td>
-                        <td>
-                          <div className="symptoms-cell">
-                            {a.commonSymptoms?.slice(0, 2).map((s, i) => (
-                              <span key={i} className="symptom-tag">
-                                {s}
-                              </span>
-                            ))}
-                            {a.commonSymptoms?.length > 2 && (
-                              <span className="more-tag">
-                                +{a.commonSymptoms.length - 2}
-                              </span>
-                            )}
+                          </td>
+                          <td>
+                            <div className="symptoms-cell">
+                              {Array.isArray(a.commonSymptoms) && a.commonSymptoms.slice(0, 2).map((s, i) => (
+                                <span key={i} className="symptom-tag">
+                                  {s}
+                                </span>
+                              ))}
+                              {Array.isArray(a.commonSymptoms) && a.commonSymptoms.length > 2 && (
+                                <span className="more-tag">
+                                  +{a.commonSymptoms.length - 2}
+                                </span>
+                              )}
+                              {(!a.commonSymptoms || !Array.isArray(a.commonSymptoms)) && (
+                                <span className="no-data">No symptoms data</span>
+                              )}
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="5" className="no-data-row">
+                          <div className="empty-table">
+                            <MapPin size={48} />
+                            <p>No area statistics available</p>
                           </div>
                         </td>
                       </tr>
-                    ))}
+                    )}
                   </tbody>
                 </table>
               </div>
@@ -624,7 +649,7 @@ export default function AdminDashboard() {
               <div className="table-header">
                 <h3>Health Reports Moderation</h3>
                 <div className="table-actions">
-                  <span className="table-count">{reports.length} reports</span>
+                  <span className="table-count">{reports.length || 0} reports</span>
                   <button className="export-btn" onClick={downloadCSV}>
                     <Download size={14} />
                     Export All
@@ -645,152 +670,192 @@ export default function AdminDashboard() {
                     </tr>
                   </thead>
                   <tbody>
-                    {reports.map(r => (
-                      <tr key={r._id}>
-                        <td>
-                          <div className="area-info">
-                            <MapPin size={14} />
-                            <span>{r.location?.area || "Unknown"}</span>
-                          </div>
-                        </td>
-                        <td>
-                          <div className="metric-cell">
-                            <div className="metric-value">{r.sleep || "0"}</div>
-                            <div className="metric-label">hours</div>
-                          </div>
-                        </td>
-                        <td>
-                          <div className="metric-cell">
-                            <div 
-                              className="stress-level"
-                              style={{ 
-                                color: (r.stress || 0) > 7 ? '#ef4444' : (r.stress || 0) > 4 ? '#f59e0b' : '#10b981'
-                              }}
-                            >
-                              {r.stress || "0"}
+                    {Array.isArray(reports) && reports.length > 0 ? (
+                      reports.map(r => (
+                        <tr key={r._id}>
+                          <td>
+                            <div className="area-info">
+                              <MapPin size={14} />
+                              <span>{r.location?.area || "Unknown"}</span>
                             </div>
-                            <div className="metric-label">level</div>
-                          </div>
-                        </td>
-                        <td>
-                          <div className="symptoms-cell">
-                            {r.symptoms?.slice(0, 2).map((s, i) => (
-                              <span key={i} className="symptom-tag small">
-                                {s}
-                              </span>
-                            ))}
-                            {r.symptoms?.length > 2 && (
-                              <span className="more-tag">
-                                +{r.symptoms.length - 2}
-                              </span>
-                            )}
-                          </div>
-                        </td>
-                        <td>
-                          <span className="status-badge">
-                            {r.status || "PENDING"}
-                          </span>
-                        </td>
-                        <td>
-                          <div className="action-buttons">
-                            <button 
-                              className="action-icon view"
-                              title="View Details"
-                              onClick={() => navigate(`/admin/report/${r._id}`)}
-                            >
-                              <Eye size={14} />
-                            </button>
-                            <button 
-                              className="action-icon delete"
-                              title="Delete Report"
-                              onClick={() => deleteReport(r._id)}
-                            >
-                              <Trash2 size={14} />
-                            </button>
+                          </td>
+                          <td>
+                            <div className="metric-cell">
+                              <div className="metric-value">{r.sleep || "0"}</div>
+                              <div className="metric-label">hours</div>
+                            </div>
+                          </td>
+                          <td>
+                            <div className="metric-cell">
+                              <div 
+                                className="stress-level"
+                                style={{ 
+                                  color: (r.stress || 0) > 7 ? '#ef4444' : (r.stress || 0) > 4 ? '#f59e0b' : '#10b981'
+                                }}
+                              >
+                                {r.stress || "0"}
+                              </div>
+                              <div className="metric-label">level</div>
+                            </div>
+                          </td>
+                          <td>
+                            <div className="symptoms-cell">
+                              {Array.isArray(r.symptoms) && r.symptoms.slice(0, 2).map((s, i) => (
+                                <span key={i} className="symptom-tag small">
+                                  {s}
+                                </span>
+                              ))}
+                              {Array.isArray(r.symptoms) && r.symptoms.length > 2 && (
+                                <span className="more-tag">
+                                  +{r.symptoms.length - 2}
+                                </span>
+                              )}
+                              {(!r.symptoms || !Array.isArray(r.symptoms)) && (
+                                <span className="no-data">No symptoms</span>
+                              )}
+                            </div>
+                          </td>
+                          <td>
+                            <span className="status-badge">
+                              {r.status || "PENDING"}
+                            </span>
+                          </td>
+                          <td>
+                            <div className="action-buttons">
+                              <button 
+                                className="action-icon view"
+                                title="View Details"
+                                onClick={() => navigate(`/admin/report/${r._id}`)}
+                              >
+                                <Eye size={14} />
+                              </button>
+                              <button 
+                                className="action-icon delete"
+                                title="Delete Report"
+                                onClick={() => deleteReport(r._id)}
+                              >
+                                <Trash2 size={14} />
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))
+                    ) : (
+                      <tr>
+                        <td colSpan="6" className="no-data-row">
+                          <div className="empty-table">
+                            <FileText size={48} />
+                            <p>No health reports available</p>
                           </div>
                         </td>
                       </tr>
-                    ))}
+                    )}
                   </tbody>
                 </table>
-                
-                {reports.length === 0 && (
-                  <div className="empty-table">
-                    <FileText size={48} />
-                    <p>No health reports available</p>
-                  </div>
-                )}
               </div>
             </div>
           </div>
         )}
 
         {activeTab === 'risk' && (
-          <div className="tab-content">
-            <div className="risk-analysis">
-              <h3 className="section-title">AI Risk Analysis</h3>
-              
-              <div className="risk-grid">
-                {aiRisk.map(risk => (
-                  <div 
-                    key={risk.area}
-                    className="risk-card"
-                    style={{ 
-                      borderLeft: `4px solid ${
-                        risk.risk === "HIGH" ? '#ef4444' : 
-                        risk.risk === "MEDIUM" ? '#f59e0b' : '#10b981'
-                      }`
-                    }}
-                  >
-                    <div className="risk-header">
-                      <div className="risk-area">
-                        <MapPin size={16} />
-                        <span>{risk.area}</span>
-                      </div>
-                      <div 
-                        className={`risk-level ${risk.risk?.toLowerCase()}`}
-                      >
-                        {risk.risk}
-                      </div>
-                    </div>
-                    
-                    <div className="risk-metrics">
-                      <div className="metric">
-                        <div className="metric-label">AQI</div>
-                        <div className="metric-value">{Math.round(risk.avgAQI || 0)}</div>
-                      </div>
-                      <div className="metric">
-                        <div className="metric-label">Stress</div>
-                        <div className="metric-value">{risk.avgStress || "0"}</div>
-                      </div>
-                      <div className="metric">
-                        <div className="metric-label">Sleep</div>
-                        <div className="metric-value">{risk.avgSleep || "0"}</div>
-                      </div>
-                    </div>
-                    
-                    <div className="risk-confidence">
-                      <div className="confidence-label">
-                        <span>AI Confidence</span>
-                        <span>{Math.round((risk.confidence || 0) * 100)}%</span>
-                      </div>
-                      <div className="confidence-bar">
-                        <div 
-                          className="confidence-fill"
-                          style={{ 
-                            width: `${(risk.confidence || 0) * 100}%`,
-                            background: risk.risk === "HIGH" ? '#ef4444' : 
-                                      risk.risk === "MEDIUM" ? '#f59e0b' : '#10b981'
-                          }}
-                        ></div>
-                      </div>
-                    </div>
+  <div className="tab-content">
+    <div className="risk-analysis">
+      <h3 className="section-title">AI Risk Analysis</h3>
+      
+      <div className="risk-grid">
+        {Array.isArray(aiRisk) && aiRisk.length > 0 ? (
+          aiRisk.map((item, index) => {
+            // Check if risk is an object or string
+            let riskLevel, riskLevelLower, riskColor;
+            
+            if (item && typeof item.risk === 'object') {
+              // If risk is an object, extract the risk level from it
+              riskLevel = item.risk?.risk || item.risk?.level || "UNKNOWN";
+            } else {
+              // If risk is a string (or other primitive)
+              riskLevel = item.risk || "UNKNOWN";
+            }
+            
+            // Convert to lowercase for className
+            riskLevelLower = typeof riskLevel === 'string' ? riskLevel.toLowerCase() : 'unknown';
+            
+            // Determine color based on risk level
+            const riskLevelUpper = typeof riskLevel === 'string' ? riskLevel.toUpperCase() : 'UNKNOWN';
+            riskColor = 
+              riskLevelUpper === "HIGH" ? '#ef4444' : 
+              riskLevelUpper === "MEDIUM" ? '#f59e0b' : 
+              riskLevelUpper === "LOW" ? '#10b981' : '#6b7280';
+            
+            // Extract other values safely
+            const areaName = item.area || 'Unknown Area';
+            const aqiValue = item.finalAQI || item.avgAQI || 0;
+            const stressValue = item.avgStress || 0;
+            const sleepValue = item.avgSleep || 0;
+            const confidenceValue = item.confidence || 0;
+            
+            return (
+              <div 
+                key={areaName + index}
+                className="risk-card"
+                style={{ 
+                  borderLeft: `4px solid ${riskColor}`
+                }}
+              >
+                <div className="risk-header">
+                  <div className="risk-area">
+                    <MapPin size={16} />
+                    <span>{areaName}</span>
                   </div>
-                ))}
+                  <div 
+                    className={`risk-level ${riskLevelLower}`}
+                  >
+                    {riskLevel}
+                  </div>
+                </div>
+                
+                <div className="risk-metrics">
+                  <div className="metric">
+                    <div className="metric-label">AQI</div>
+                    <div className="metric-value">{Math.round(aqiValue)}</div>
+                  </div>
+                  <div className="metric">
+                    <div className="metric-label">Stress</div>
+                    <div className="metric-value">{stressValue}</div>
+                  </div>
+                  <div className="metric">
+                    <div className="metric-label">Sleep</div>
+                    <div className="metric-value">{sleepValue}</div>
+                  </div>
+                </div>
+                
+                <div className="risk-confidence">
+                  <div className="confidence-label">
+                    <span>AI Confidence</span>
+                    <span>{Math.round(confidenceValue * 100)}%</span>
+                  </div>
+                  <div className="confidence-bar">
+                    <div 
+                      className="confidence-fill"
+                      style={{ 
+                        width: `${confidenceValue * 100}%`,
+                        background: riskColor
+                      }}
+                    ></div>
+                  </div>
+                </div>
               </div>
-            </div>
+            );
+          })
+        ) : (
+          <div className="no-risk-data">
+            <AlertTriangle size={48} />
+            <p>No risk analysis data available</p>
           </div>
         )}
+      </div>
+    </div>
+  </div>
+)}
 
         {/* Footer - Same as Home */}
         <footer className="dashboard-footer">
@@ -872,6 +937,84 @@ export default function AdminDashboard() {
           height: 6px;
           background: #10b981;
           border-radius: 50%;
+        }
+
+        /* Additional styles for no-data states */
+        .no-data-chart {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          height: 100%;
+          color: #94a3b8;
+        }
+
+        .no-data {
+          color: #94a3b8;
+          font-size: 12px;
+          font-style: italic;
+        }
+
+        .no-data-row {
+          text-align: center;
+          padding: 40px 20px;
+        }
+
+        .no-risk-data {
+          grid-column: 1 / -1;
+          text-align: center;
+          padding: 60px 20px;
+          color: #94a3b8;
+        }
+
+        .empty-table {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          justify-content: center;
+          padding: 40px 20px;
+          color: #94a3b8;
+        }
+
+        .empty-table svg {
+          margin-bottom: 16px;
+          opacity: 0.5;
+        }
+
+        /* Risk level styles */
+        .risk-level.high {
+          background: #fee2e2;
+          color: #dc2626;
+          padding: 4px 8px;
+          border-radius: 4px;
+          font-size: 12px;
+          font-weight: 600;
+        }
+        
+        .risk-level.medium {
+          background: #fef3c7;
+          color: #d97706;
+          padding: 4px 8px;
+          border-radius: 4px;
+          font-size: 12px;
+          font-weight: 600;
+        }
+        
+        .risk-level.low {
+          background: #d1fae5;
+          color: #059669;
+          padding: 4px 8px;
+          border-radius: 4px;
+          font-size: 12px;
+          font-weight: 600;
+        }
+        
+        .risk-level.unknown {
+          background: #f3f4f6;
+          color: #6b7280;
+          padding: 4px 8px;
+          border-radius: 4px;
+          font-size: 12px;
+          font-weight: 600;
         }
       `}</style>
     </div>

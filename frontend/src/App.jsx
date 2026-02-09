@@ -37,7 +37,7 @@ import ProtectedRoute from "./auth/ProtectedRoute";
 export default function App() {
   return (
     <>
-      {/* ROUTES */}
+      {/* ⭐ ROUTES */}
       <Routes>
 
         {/* Landing */}
@@ -98,7 +98,7 @@ export default function App() {
 
       </Routes>
 
-      {/* ⭐ GLOBAL AI ASSISTANT (IMPORTANT) */}
+      {/* GLOBAL AI ASSISTANT (IMPORTANT) */}
       <AIAssistant />
 
     </>

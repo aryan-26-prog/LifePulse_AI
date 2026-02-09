@@ -163,7 +163,7 @@ export default function HealthCheckin() {
   const [location, setLocation] = useState(null);
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [activeMetric, setActiveMetric] = useState(0);
-  const [inputMode, setInputMode] = useState("voice"); // "voice" or "manual"
+  const [inputMode, setInputMode] = useState("manual"); // voice or manual
   const [liveData, setLiveData] = useState({
     healthIndex: 87,
     activeAlerts: 3,
@@ -654,18 +654,18 @@ export default function HealthCheckin() {
               <div className="viz-controls">
                 <div className="input-mode-selector">
                   <button
-                    className={`mode-btn ${inputMode === 'voice' ? 'active' : ''}`}
-                    onClick={switchToVoice}
-                  >
-                    <Mic size={14} />
-                    Voice
-                  </button>
-                  <button
                     className={`mode-btn ${inputMode === 'manual' ? 'active' : ''}`}
                     onClick={switchToManual}
                   >
                     <Keyboard size={14} />
                     Manual
+                  </button>
+                  <button
+                    className={`mode-btn ${inputMode === 'voice' ? 'active' : ''}`}
+                    onClick={switchToVoice}
+                  >
+                    <Mic size={14} />
+                    Voice
                   </button>
                 </div>
               </div>

@@ -2,6 +2,8 @@ const WorkReport = require("../models/VolunteerWorkReport");
 const Volunteer = require("../models/Volunteer");
 const { generateBadges } = require("../utils/badgeEngine");
 const { calculateXP, calculateLevel } = require("../utils/xpEngine");
+const uploadToCloudinary = require("../utils/cloudinaryUpload");
+
 
 /* ================= VOLUNTEER SUBMIT REPORT ================= */
 exports.submitWorkReport = async (req, res) => {
@@ -17,11 +19,15 @@ exports.submitWorkReport = async (req, res) => {
     if (!campId)
       return res.status(400).json({ message: "Camp ID required" });
 
-    /* ⭐ SAFE IMAGE HANDLING */
     let images = [];
 
     if (req.files && req.files.length > 0) {
-      images = req.files.map(file => file.path);
+
+      for (const file of req.files) {
+        const url = await uploadToCloudinary(file.buffer);
+        images.push(url);
+      }
+
     }
 
     const report = await WorkReport.create({
@@ -33,7 +39,6 @@ exports.submitWorkReport = async (req, res) => {
       images
     });
 
-    /* ⭐ SOCKET EMIT */
     const io = req.app.get("io");
 
     if (io) {
@@ -55,7 +60,6 @@ exports.submitWorkReport = async (req, res) => {
     });
   }
 };
-
 
 
 /* ================= NGO APPROVE ================= */
@@ -147,10 +151,6 @@ exports.approveReport = async (req, res) => {
   }
 };
 
-
-
-
-/* ================= NGO REJECT ================= */
 /* ================= NGO REJECT ================= */
 exports.rejectReport = async (req, res) => {
 

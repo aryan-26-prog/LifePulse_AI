@@ -1,4 +1,4 @@
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import API from "../../api/api";
 import {
@@ -201,7 +201,7 @@ export default function SubmitReport() {
       
       setSuccess(true);
       setTimeout(() => {
-        navigate("/volunteer/dashboard");
+        navigate("/volunteer", { state: { refresh: true } });
       }, 2000);
       
     } catch (error) {
@@ -237,7 +237,7 @@ export default function SubmitReport() {
         <div className="header-right">
           <button 
             className="back-btn"
-            onClick={() => navigate("/volunteer/dashboard")}
+            onClick={() => navigate("/volunteer")}
           >
             <ArrowLeft size={16} />
             Back to Dashboard
@@ -405,7 +405,7 @@ export default function SubmitReport() {
                   <button
                     type="button"
                     className="action-btn outline"
-                    onClick={() => navigate("/volunteer/dashboard")}
+                    onClick={() => navigate("/volunteer")}
                   >
                     <ArrowLeft size={16} />
                     Cancel
@@ -476,41 +476,13 @@ export default function SubmitReport() {
           <div className="footer-bottom">
             <span>© 2024 LifePulse AI. Report Submission Portal.</span>
             <div className="footer-links">
-              <span onClick={() => navigate('/volunteer/dashboard')}>Dashboard</span>
+              <span onClick={() => navigate('/volunteer')}>Dashboard</span>
               <span>Help</span>
               <span>Privacy</span>
             </div>
           </div>
         </footer>
       </main>
-
-      {/* Same CSS animations as Home */}
-      <style >{`
-        @keyframes pulse {
-          0% { opacity: 0.5; }
-          50% { opacity: 1; }
-          100% { opacity: 0.5; }
-        }
-        
-        @keyframes spin {
-          from { transform: rotate(0deg); }
-          to { transform: rotate(360deg); }
-        }
-        
-        .spinner {
-          width: 16px;
-          height: 16px;
-          border: 2px solid rgba(255, 255, 255, 0.3);
-          border-top-color: white;
-          border-radius: 50%;
-          animation: spin 1s linear infinite;
-          margin-right: 8px;
-        }
-        
-        .status-dot.active {
-          animation: pulse 1.5s ease-in-out infinite;
-        }
-      `}</style>
     </div>
   );
 }

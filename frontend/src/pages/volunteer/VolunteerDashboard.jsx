@@ -182,6 +182,8 @@ export default function VolunteerDashboard() {
   const [camps, setCamps] = useState([]);
   const [loading, setLoading] = useState(true);
   const [activeTab, setActiveTab] = useState('camps');
+  const [reportSubmitted, setReportSubmitted] = useState(false);
+
 
   const volunteerId = localStorage.getItem("volunteerId");
   const navigate = useNavigate();
@@ -192,10 +194,12 @@ export default function VolunteerDashboard() {
 
     socket.emit("joinVolunteer", volunteerId);
 
-    const approvedListener = (data) => {
+    const approvedListener = async (data) => {
       alert(`✅ Report Approved! XP +${data.xpEarned}`);
-      loadDashboard();
+      await loadDashboard();
+      await loadCamps();
     };
+
 
     const rejectedListener = (data) => {
       alert(`❌ Report Rejected: ${data.feedback}`);
@@ -229,40 +233,52 @@ export default function VolunteerDashboard() {
   };
 
   const loadDashboard = async () => {
-    const res = await API.get(`/volunteers/${volunteerId}/dashboard`);
-    setVolunteer(res.data.volunteer);
-    setAssignedCamp(res.data.assignedCamp);
-  };
+  const res = await API.get(`/volunteers/${volunteerId}/dashboard`);
+
+  setVolunteer(res.data.volunteer);
+  setAssignedCamp(res.data.assignedCamp);
+  setReportSubmitted(res.data.reportSubmitted); 
+};
+
 
   const loadCamps = async () => {
-    const res = await API.get("/volunteers/active-camps");
-    setCamps(res.data.data || []);
-  };
+
+  const res = await API.get(
+    `/volunteers/active-camps?volunteerId=${volunteerId}`
+  );
+
+  setCamps(res.data.data || []);
+};
+
 
   const joinCamp = async (id) => {
     try {
       await API.put(`/volunteers/${volunteerId}/join`, { campId: id });
       await loadDashboard();
-    } catch (error) {
+      await loadCamps();
+    } catch {
       alert("Unable to join camp");
     }
   };
 
+
   const leaveCamp = async () => {
-    if (!window.confirm("Are you sure you want to leave this camp?")) return;
-    
-    try {
-      await API.put(`/volunteers/${volunteerId}/leave`);
-      await loadDashboard();
-    } catch (error) {
-      alert("Unable to leave camp");
-    }
-  };
+  if (!window.confirm("Are you sure you want to leave this camp?")) return;
+
+  try {
+    await API.put(`/volunteers/${volunteerId}/leave`);
+    await loadDashboard();
+    await loadCamps();
+  } catch {
+    alert("Unable to leave camp");
+  }
+};
+
 
   // Get risk color
   const getRiskColor = (risk) => {
     switch(risk) {
-      case "SEVERE": return "#dc2626";
+      case "SEVERE": return "#8b5cf6";
       case "HIGH": return "#ef4444";
       case "MEDIUM": return "#f59e0b";
       default: return "#10b981";
@@ -271,11 +287,16 @@ export default function VolunteerDashboard() {
 
   // Volunteer stats
   const volunteerStats = volunteer ? [
-    { icon: <Award size={20} />, label: "XP Points", value: volunteer.xp || "0", color: "#8b5cf6", change: "+25" },
-    { icon: <CheckCircle size={20} />, label: "Reports", value: volunteer.reportsSubmitted || "0", color: "#10b981", change: "+3" },
-    { icon: <Heart size={20} />, label: "People Helped", value: volunteer.peopleHelped || "0", color: "#ef4444", change: "+12" },
-    { icon: <Clock size={20} />, label: "Hours", value: volunteer.hoursWorked || "0", color: "#3b82f6", change: "+8" },
-  ] : [];
+  { icon: <Award size={20} />, label: "XP Points", value: volunteer.xp || "0", color: "#8b5cf6" },
+
+  { icon: <CheckCircle size={20} />, label: "Completed Camps", value: volunteer.completedCamps || "0", color: "#10b981" },
+
+  { icon: <Heart size={20} />, label: "People Helped", value: volunteer.totalPeopleHelped || "0", color: "#ef4444" },
+
+  { icon: <Clock size={20} />, label: "Hours", value: volunteer.totalHours || "0", color: "#3b82f6" },
+
+] : [];
+
 
   if (loading) {
     return (
@@ -366,106 +387,106 @@ export default function VolunteerDashboard() {
           </div>
           
           {/* Assignment Panel */}
-          <div className="assignment-panel">
-            <div className="panel-header">
-              <h3>Current Assignment</h3>
+<div className="assignment-panel">
+
+  <div className="panel-header">
+    <h3>Current Assignment</h3>
+  </div>
+
+  <div className="panel-content">
+
+    {assignedCamp ? (
+
+      <div className="assigned-camp">
+
+        {/* Camp Header */}
+        <div className="camp-header">
+          <MapPin size={20} />
+          <div>
+            <h4>{assignedCamp.area}</h4>
+
+            <div
+              className="risk-badge"
+              style={{ background: getRiskColor(assignedCamp.riskLevel) }}
+            >
+              {assignedCamp.riskLevel} RISK
             </div>
-            
-            <div className="panel-content">
-              {assignedCamp ? (
-                <div className="assigned-camp">
-                  <div className="camp-header">
-                    <MapPin size={20} />
-                    <div>
-                      <h4>{assignedCamp.area}</h4>
-                      <div 
-                        className="risk-badge"
-                        style={{ background: getRiskColor(assignedCamp.riskLevel) }}
-                      >
-                        {assignedCamp.riskLevel} RISK
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="camp-details">
-                    <div className="detail">
-                      <Users size={16} />
-                      <span>{assignedCamp.volunteersCount || "0"} Volunteers</span>
-                    </div>
-                    <div className="detail">
-                      <AlertTriangle size={16} />
-                      <span>Priority: {assignedCamp.riskLevel}</span>
-                    </div>
-                  </div>
-                  
-                  <div className="camp-actions">
-                    <button 
-                      className="action-btn primary"
-                      onClick={() => navigate(`/volunteer/report/${assignedCamp._id}`)}
-                    >
-                      <Zap size={16} />
-                      Submit Work Report
-                      <ChevronRight size={16} />
-                    </button>
-                    <button 
-                      className="action-btn outline"
-                      onClick={leaveCamp}
-                    >
-                      <LogOut size={16} />
-                      Leave Camp
-                    </button>
-                  </div>
-                </div>
-              ) : (
-                <div className="no-assignment">
-                  <div className="status-icon">
-                    <CheckCircle size={32} />
-                  </div>
-                  <h4>Available for Deployment</h4>
-                  <p>You are not currently assigned to any relief camp</p>
-                  <button 
-                    className="action-btn primary"
-                    onClick={() => setActiveTab('camps')}
-                  >
-                    <Eye size={16} />
-                    Browse Available Camps
-                  </button>
-                </div>
-              )}
-            </div>
+
           </div>
         </div>
 
-        {/* Tabs Navigation */}
-        <div className="tabs-navigation">
-          <button 
-            className={`tab-btn ${activeTab === 'camps' ? 'active' : ''}`}
-            onClick={() => setActiveTab('camps')}
+
+        {/* Camp Details */}
+        <div className="camp-details">
+
+          <div className="detail">
+            <Users size={16} />
+            <span>{assignedCamp.volunteersCount || "0"} Volunteers</span>
+          </div>
+
+          <div className="detail">
+            <AlertTriangle size={16} />
+            <span>Priority: {assignedCamp.riskLevel}</span>
+          </div>
+
+        </div>
+
+
+        {/* Camp Actions */}
+        <div className="camp-actions">
+
+          {/* ⭐ REPORT BUTTON CONDITION */}
+          {!reportSubmitted ? (
+
+            <button
+              className="action-btn primary"
+              onClick={() => navigate(`/volunteer/report/${assignedCamp._id}`)}
+            >
+              <Zap size={16} />
+              Submit Work Report
+              <ChevronRight size={16} />
+            </button>
+
+          ) : (
+
+            <div className="report-submitted-badge">
+              <CheckCircle size={16} />
+              Report Already Submitted
+            </div>
+
+          )}
+
+
+          {/* Leave Camp */}
+          <button
+            className="action-btn outline"
+            onClick={leaveCamp}
           >
-            <MapPin size={16} />
-            Available Camps ({camps.length})
+            <LogOut size={16} />
+            Leave Camp
           </button>
-          <button 
-            className={`tab-btn ${activeTab === 'map' ? 'active' : ''}`}
-            onClick={() => setActiveTab('map')}
-          >
-            <Navigation size={16} />
-            Camp Map
-          </button>
-          <button 
-            className={`tab-btn ${activeTab === 'activity' ? 'active' : ''}`}
-            onClick={() => setActiveTab('activity')}
-          >
-            <Activity size={16} />
-            My Activity
-          </button>
-          <button 
-            className={`tab-btn ${activeTab === 'rewards' ? 'active' : ''}`}
-            onClick={() => setActiveTab('rewards')}
-          >
-            <Award size={16} />
-            Rewards
-          </button>
+
+        </div>
+
+      </div>
+
+    ) : (
+
+      <div className="no-assignment">
+
+        <div className="status-icon">
+          <CheckCircle size={32} />
+        </div>
+
+        <h4>Available for Deployment</h4>
+        <p>You are not currently assigned to any relief camp</p>
+      </div>
+
+    )}
+
+  </div>
+</div>
+
         </div>
 
         {/* Tab Content */}
@@ -521,28 +542,6 @@ export default function VolunteerDashboard() {
                   )}
                 </div>
               ))}
-            </div>
-          </div>
-        )}
-
-        {activeTab === 'map' && (
-          <div className="tab-content">
-            <div className="map-placeholder">
-              <div className="placeholder-content">
-                <Navigation size={48} />
-                <h3>Camp Map View</h3>
-                <p>Interactive map of all active relief camps</p>
-                <button 
-                  className="action-btn outline"
-                  onClick={() => {
-                    // This would open the actual VolunteerMap component
-                    // For now, we'll just show a message
-                    alert("Map view would open here");
-                  }}
-                >
-                  Open Full Map
-                </button>
-              </div>
             </div>
           </div>
         )}

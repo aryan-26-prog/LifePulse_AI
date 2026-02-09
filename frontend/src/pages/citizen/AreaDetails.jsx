@@ -777,7 +777,7 @@ export default function AreaDetails() {
       </main>
 
       {/* Add CSS animations */}
-      <style jsx>{`
+      <style >{`
         @keyframes pulse {
           0% { opacity: 0.5; }
           50% { opacity: 1; }

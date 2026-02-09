@@ -128,7 +128,9 @@ exports.login = async (req, res) => {
 
   const { email, password } = req.body;
 
-  const user = await User.findOne({ email });
+  const user = await User
+    .findOne({ email })
+    .populate("volunteerProfile");
 
   if (!user || !(await bcrypt.compare(password, user.password)))
     return res.status(401).json({ message: "Invalid credentials" });
@@ -146,6 +148,8 @@ exports.login = async (req, res) => {
 
   res.json({
     token,
-    user
+    user,
+    volunteerId: user.volunteerProfile?._id || null
   });
 };
+

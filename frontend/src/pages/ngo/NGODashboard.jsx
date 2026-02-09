@@ -213,7 +213,7 @@ export default function NGODashboard() {
     if (aqi <= 100) return "#f59e0b";
     if (aqi <= 200) return "#f97316";
     if (aqi <= 300) return "#ef4444";
-    return "#dc2626";
+    return "#8b5cf6";
   };
 
   const getRiskColor = (risk) => {
@@ -628,7 +628,7 @@ export default function NGODashboard() {
       </main>
 
       {/* Same CSS animations as Home */}
-      <style jsx>{`
+      <style >{`
         @keyframes pulse {
           0% { opacity: 0.5; }
           50% { opacity: 1; }

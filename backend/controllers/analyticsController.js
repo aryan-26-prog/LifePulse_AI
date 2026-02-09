@@ -87,10 +87,10 @@ const getAIRiskPerArea = async (req, res) => {
         results.push({
           area: areaData._id,
 
-          // ⭐ REAL AQI
+          //  REAL AQI
           avgAQI: realAQI,
 
-          // ⭐ AI RISK
+          //  AI RISK
           risk: aiData.risk,
           envScore: aiData.envScore,
           humanScore: aiData.humanScore,

@@ -1,5 +1,7 @@
+const mongoose = require("mongoose");
 const Volunteer = require("../models/Volunteer");
 const ReliefCamp = require("../models/ReliefCamp");
+const WorkReport = require("../models/VolunteerWorkReport");
 
 
 /* ================= GET ACTIVE + PENDING CAMPS ================= */
@@ -7,11 +9,29 @@ exports.getActiveCamps = async (req, res) => {
 
   try {
 
+    const volunteerId = req.query.volunteerId;
+
     const camps = await ReliefCamp.find({
       status: { $in: ["ACTIVE", "PENDING"] }
     }).populate("volunteerAssigned", "name phone");
 
-    const formatted = camps.map(c => ({
+    let filteredCamps = camps;
+
+    // Remove camp if report already submitted
+    if (volunteerId) {
+
+      const reports = await WorkReport.find({
+        volunteer: volunteerId
+      });
+
+      const reportedCampIds = reports.map(r => r.camp.toString());
+
+      filteredCamps = camps.filter(
+        c => !reportedCampIds.includes(c._id.toString())
+      );
+    }
+
+    const formatted = filteredCamps.map(c => ({
       id: c._id,
       area: c.area,
       lat: c.lat,
@@ -28,11 +48,16 @@ exports.getActiveCamps = async (req, res) => {
     });
 
   } catch (err) {
+
+    console.error("Active Camps Error:", err);
+
     res.status(500).json({
       message: "Failed to fetch camps"
     });
+
   }
 };
+
 
 
 
@@ -41,18 +66,48 @@ exports.getVolunteerDashboard = async (req, res) => {
 
   try {
 
-    const volunteer = await Volunteer.findById(req.params.id)
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        message: "Invalid volunteer ID"
+      });
+    }
+
+    const volunteer = await Volunteer
+      .findById(id)
       .populate("assignedCamp");
 
-    if (!volunteer)
-      return res.status(404).json({ message: "Volunteer not found" });
+    if (!volunteer) {
+      return res.status(404).json({
+        message: "Volunteer not found"
+      });
+    }
+
+    let reportSubmitted = false;
+
+    if (volunteer.assignedCamp) {
+
+      const report = await WorkReport.findOne({
+      volunteer: volunteer._id,
+      camp: volunteer.assignedCamp._id,
+      status: { $in: ["PENDING", "APPROVED"] }
+    });
+
+
+      reportSubmitted = !!report;
+    }
 
     res.json({
       volunteer,
-      assignedCamp: volunteer.assignedCamp || null
+      assignedCamp: volunteer.assignedCamp || null,
+      reportSubmitted
     });
 
   } catch (err) {
+
+    console.error("Dashboard Error:", err);
+
     res.status(500).json({
       message: "Dashboard fetch failed"
     });
@@ -61,25 +116,33 @@ exports.getVolunteerDashboard = async (req, res) => {
 
 
 
-/* ================= JOIN CAMP (ACTIVE + PENDING ALLOWED) ================= */
+
+/* ================= JOIN CAMP ================= */
 exports.joinCamp = async (req, res) => {
 
   try {
 
+    const { id } = req.params;
     const { campId } = req.body;
 
-    if (!campId)
-      return res.status(400).json({ message: "Camp ID required" });
+    // VALIDATION
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({ message: "Invalid volunteer ID" });
+    }
 
-    const volunteer = await Volunteer.findById(req.params.id);
+    if (!mongoose.Types.ObjectId.isValid(campId)) {
+      return res.status(400).json({ message: "Invalid camp ID" });
+    }
+
+    const volunteer = await Volunteer.findById(id);
     const camp = await ReliefCamp.findById(campId);
 
-    if (!volunteer || !camp)
+    if (!volunteer || !camp) {
       return res.status(404).json({
         message: "Volunteer or Camp not found"
       });
+    }
 
-    // ⭐ Allow ACTIVE + PENDING join
     if (!["ACTIVE", "PENDING"].includes(camp.status)) {
       return res.status(400).json({
         message: "Camp is closed"
@@ -95,7 +158,12 @@ exports.joinCamp = async (req, res) => {
     volunteer.assignedCamp = campId;
     volunteer.available = false;
 
-    if (!camp.volunteerAssigned.includes(volunteer._id)) {
+    // SAFE OBJECTID COMPARISON
+    const alreadyAdded = camp.volunteerAssigned.some(
+      v => v.toString() === volunteer._id.toString()
+    );
+
+    if (!alreadyAdded) {
       camp.volunteerAssigned.push(volunteer._id);
     }
 
@@ -107,6 +175,9 @@ exports.joinCamp = async (req, res) => {
     });
 
   } catch (err) {
+
+    console.error("Join Camp Error:", err);
+
     res.status(500).json({
       message: "Join camp failed"
     });
@@ -120,10 +191,21 @@ exports.leaveCamp = async (req, res) => {
 
   try {
 
-    const volunteer = await Volunteer.findById(req.params.id);
+    const { id } = req.params;
 
-    if (!volunteer)
-      return res.status(404).json({ message: "Volunteer not found" });
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        message: "Invalid volunteer ID"
+      });
+    }
+
+    const volunteer = await Volunteer.findById(id);
+
+    if (!volunteer) {
+      return res.status(404).json({
+        message: "Volunteer not found"
+      });
+    }
 
     if (volunteer.assignedCamp) {
 
@@ -150,6 +232,9 @@ exports.leaveCamp = async (req, res) => {
     });
 
   } catch (err) {
+
+    console.error("Leave Camp Error:", err);
+
     res.status(500).json({
       message: "Leave camp failed"
     });
@@ -157,7 +242,10 @@ exports.leaveCamp = async (req, res) => {
 };
 
 
+
+/* ================= GET REGISTERED VOLUNTEERS ================= */
 exports.getRegisteredVolunteers = async (req, res) => {
+
   try {
 
     const volunteers = await Volunteer.find()
@@ -169,6 +257,9 @@ exports.getRegisteredVolunteers = async (req, res) => {
     });
 
   } catch (err) {
+
+    console.error("Volunteers Fetch Error:", err);
+
     res.status(500).json({
       message: "Failed to fetch volunteers"
     });
@@ -176,9 +267,37 @@ exports.getRegisteredVolunteers = async (req, res) => {
 };
 
 
+
+/* ================= VOLUNTEER PROFILE ================= */
 exports.getVolunteerProfile = async (req, res) => {
 
-  const volunteer = await Volunteer.findById(req.params.id);
+  try {
 
-  res.json(volunteer);
+    const { id } = req.params;
+
+    if (!mongoose.Types.ObjectId.isValid(id)) {
+      return res.status(400).json({
+        message: "Invalid volunteer ID"
+      });
+    }
+
+    const volunteer = await Volunteer.findById(id);
+
+    if (!volunteer) {
+      return res.status(404).json({
+        message: "Volunteer not found"
+      });
+    }
+
+    res.json(volunteer);
+
+  } catch (err) {
+
+    console.error("Profile Error:", err);
+
+    res.status(500).json({
+      message: "Profile fetch failed"
+    });
+  }
 };
+

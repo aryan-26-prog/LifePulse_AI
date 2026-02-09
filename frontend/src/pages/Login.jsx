@@ -202,37 +202,65 @@ export default function Login() {
   ];
 
   const login = async (e) => {
-    e.preventDefault();
-    setIsLoading(true);
+  e.preventDefault();
+  setIsLoading(true);
 
-    const { email, password } = e.target;
+  const { email, password } = e.target;
 
-    try {
-      const res = await API.post("/auth/login", {
-        email: email.value,
-        password: password.value
-      });
+  try {
+    const res = await API.post("/auth/login", {
+      email: email.value,
+      password: password.value
+    });
 
-      const userRole = res.data.user.role;
+    console.log("LOGIN RESPONSE:", res.data);
 
-      localStorage.setItem("token", res.data.token);
-      localStorage.setItem("role", userRole);
+    const userRole = res.data.user.role;
 
-      if (userRole === "volunteer") {
-        localStorage.setItem("volunteerId", res.data.volunteerId);
+    localStorage.setItem("token", res.data.token);
+    localStorage.setItem("role", userRole);
+
+    /* ---------- VOLUNTEER ---------- */
+    if (userRole === "volunteer") {
+
+      const volunteerId = res.data.user.volunteerProfile;
+
+      if (!volunteerId) {
+        alert("Volunteer profile missing");
+        return;
       }
 
-      /* ⭐ Role Based Redirect */
-      if (userRole === "admin") window.location.href = "/admin";
-      else if (userRole === "ngo") window.location.href = "/ngo";
-      else if (userRole === "volunteer") window.location.href = "/volunteer";
+      localStorage.setItem(
+  "volunteerId",
+  res.data.user.volunteerProfile._id
+);
 
-    } catch {
-      alert("Invalid credentials or blocked account");
-    } finally {
-      setIsLoading(false);
+      navigate("/volunteer");
     }
-  };
+
+    /* ---------- NGO ---------- */
+    else if (userRole === "ngo") {
+      navigate("/ngo");
+    }
+
+    /* ---------- ADMIN ---------- */
+    else if (userRole === "admin") {
+      navigate("/admin");
+    }
+
+    /* ---------- CITIZEN ---------- */
+    else {
+      navigate("/citizen");
+    }
+
+  } catch {
+    alert("Invalid credentials or blocked account");
+  } finally {
+    setIsLoading(false);
+  }
+};
+
+
 
   return (
     <div className="industrial-dashboard">
