@@ -1,78 +1,49 @@
 const axios = require("axios");
 const EnvLog = require("../models/EnvLog");
 
-//  AQI CALC 
-function subIndex(C, BP_lo, BP_hi, I_lo, I_hi) {
-  return ((I_hi - I_lo) / (BP_hi - BP_lo)) * (C - BP_lo) + I_lo;
-}
 
-/* ================= PM2.5 ================= */
-function pm25AQI(pm) {
-  if (pm <= 30) return subIndex(pm, 0, 30, 0, 50);
-  if (pm <= 60) return subIndex(pm, 31, 60, 51, 100);
-  if (pm <= 90) return subIndex(pm, 61, 90, 101, 200);
-  if (pm <= 120) return subIndex(pm, 91, 120, 201, 300);
-  if (pm <= 250) return subIndex(pm, 121, 250, 301, 400);
-  return subIndex(pm, 251, 500, 401, 500);
-}
+// ================= OPENWEATHER AQI → REALISTIC RANGE =================
+function mapOpenWeatherAQI(owAQI, pollutants) {
 
-/* ================= PM10 ================= */
-function pm10AQI(pm) {
-  if (pm <= 50) return subIndex(pm, 0, 50, 0, 50);
-  if (pm <= 100) return subIndex(pm, 51, 100, 51, 100);
-  if (pm <= 250) return subIndex(pm, 101, 250, 101, 200);
-  if (pm <= 350) return subIndex(pm, 251, 350, 201, 300);
-  if (pm <= 430) return subIndex(pm, 351, 430, 301, 400);
-  return subIndex(pm, 431, 600, 401, 500);
-}
+  let pm25 = pollutants.pm2_5 || 0;
 
-/* ================= CO ================= */
-function coAQI(co) {
-  co = co / 1000; // µg → mg
-  if (co <= 1) return subIndex(co, 0, 1, 0, 50);
-  if (co <= 2) return subIndex(co, 1.1, 2, 51, 100);
-  if (co <= 10) return subIndex(co, 2.1, 10, 101, 200);
-  if (co <= 17) return subIndex(co, 10.1, 17, 201, 300);
-  if (co <= 34) return subIndex(co, 17.1, 34, 301, 400);
-  return subIndex(co, 34.1, 50, 401, 500);
-}
+  // ⭐ normalize PM spike
+  pm25 = Math.min(pm25, 200);
 
-/* ================= FINAL AQI ================= */
-function calculateAQI(pollutants, history = []) {
+  let value = 100;
 
-  const pm25 = pm25AQI(pollutants.pm2_5 || 0);
-  const pm10 = pm10AQI(pollutants.pm10 || 0);
+  switch (owAQI) {
 
-  // CO ko clearly secondary rakho
-  let co = coAQI(pollutants.co || 0) * 0.5;
+    case 1:
+      value = 30 + pm25 * 0.2;
+      break;
 
-  // STEP 1: scientific dominant AQI
-  let instantAQI = Math.max(pm25, pm10, co);
+    case 2:
+      value = 60 + pm25 * 0.3;
+      break;
 
-  // STEP 2: rolling average (MOST IMPORTANT)
-  let smoothedAQI = instantAQI;
+    case 3:
+      value = 110 + pm25 * 0.4;
+      break;
 
-  if (history.length > 0) {
-    const avgHistory =
-      history.reduce((a, b) => a + b, 0) / history.length;
+    case 4:
+      value = 170 + pm25 * 0.5;
+      break;
 
-    // 🔑 heavy smoothing
-    smoothedAQI =
-      (avgHistory * 0.6) +
-      (instantAQI * 0.4);
+    case 5:
+      value = 230 + pm25 * 0.6;
+      break;
   }
 
-  // STEP 3: realistic ceiling
-  if (smoothedAQI > 350) smoothedAQI = 350;
-  if (smoothedAQI < 25) smoothedAQI = 25;
-
-  return Math.round(smoothedAQI);
+  return Math.min(450, Math.round(value));
 }
 
 
 
-// AQI META 
+
+// ================= AQI META =================
 function aqiMeta(aqi) {
+
   if (aqi <= 50) return { label: "Good 🟢" };
   if (aqi <= 100) return { label: "Moderate 🟡" };
   if (aqi <= 200) return { label: "Poor 🟠" };
@@ -81,7 +52,7 @@ function aqiMeta(aqi) {
 }
 
 
-// AQI BASED RISK CLASSIFICATION
+// ================= RISK CLASSIFICATION =================
 function classifyRisk(aqi) {
 
   if (aqi <= 50) return "LOW";
@@ -91,7 +62,7 @@ function classifyRisk(aqi) {
 }
 
 
-// SMART SUGGESTION ENGINE 
+// ================= SMART SUGGESTION ENGINE =================
 function generateSmartSuggestions({ aqi, pollutants, weather }) {
 
   const pm25 = pollutants.pm2_5 || 0;
@@ -100,7 +71,7 @@ function generateSmartSuggestions({ aqi, pollutants, weather }) {
   if (aqi > 300) {
     suggestions.push("🚨 Avoid outdoor exposure completely");
     suggestions.push("😷 Use N95 mask if stepping outside");
-  } 
+  }
   else if (aqi > 150) {
     suggestions.push("⚠️ Reduce outdoor physical activity");
     suggestions.push("😷 Wear protective mask outdoors");
@@ -130,7 +101,7 @@ function generateSmartSuggestions({ aqi, pollutants, weather }) {
 }
 
 
-// HEALTH IMPACT 
+// ================= HEALTH IMPACT =================
 function calculateHealthImpact(aqi, pollutants, weather) {
 
   const pm25 = pollutants.pm2_5 || 0;
@@ -157,8 +128,10 @@ function calculateHealthImpact(aqi, pollutants, weather) {
 }
 
 
-// BY AREA 
+
+// ================= GET ENVIRONMENT BY AREA =================
 exports.getEnvironmentByArea = async (req, res) => {
+
   try {
 
     const area = req.query.area.toLowerCase();
@@ -190,13 +163,19 @@ exports.getEnvironmentByArea = async (req, res) => {
 
     const pollutants = airRes.data.list[0].components;
 
-    const aqi = calculateAQI(pollutants);
+    // ✅ FIXED AQI
+    const owAQI = airRes.data.list[0].main.aqi;
+    const aqi = mapOpenWeatherAQI(
+      owAQI,
+      pollutants
+    );
+
+
     const meta = aqiMeta(aqi);
     const health = calculateHealthImpact(aqi, pollutants, weather);
-
-    //  NEW RISK OUTPUT
     const risk = classifyRisk(aqi);
 
+    // ✅ Store history
     await EnvLog.create({ area, aqi, pollutants });
 
     res.json({
@@ -206,19 +185,22 @@ exports.getEnvironmentByArea = async (req, res) => {
         label: meta.label,
         pollutants
       },
-      risk,          
+      risk,
       health
     });
 
-  } catch (err) {
+  }
+  catch (err) {
     console.error(err.message);
     res.status(500).json({ message: "Environment fetch failed" });
   }
 };
 
 
-// location BY COORDS 
+
+// ================= GET ENVIRONMENT BY COORDS =================
 exports.getEnvironmentByCoords = async (req, res) => {
+
   try {
 
     const { lat, lng } = req.query;
@@ -254,10 +236,16 @@ exports.getEnvironmentByCoords = async (req, res) => {
 
     const pollutants = airRes.data.list[0].components;
 
-    const aqi = calculateAQI(pollutants);
+    // ✅ FIXED AQI
+    const owAQI = airRes.data.list[0].main.aqi;
+    const aqi = mapOpenWeatherAQI(
+      owAQI,
+      pollutants
+    );
+
+
     const meta = aqiMeta(aqi);
     const health = calculateHealthImpact(aqi, pollutants, weather);
-
     const risk = classifyRisk(aqi);
 
     res.json({
@@ -272,14 +260,16 @@ exports.getEnvironmentByCoords = async (req, res) => {
       health
     });
 
-  } catch (err) {
+  }
+  catch (err) {
     console.error(err.message);
     res.status(500).json({ message: "Coords environment fetch failed" });
   }
 };
 
 
-// HISTORY 
+
+// ================= AQI HISTORY =================
 exports.getAQIHistory = async (req, res) => {
 
   const area = req.query.area.toLowerCase();
