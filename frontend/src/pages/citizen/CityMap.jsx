@@ -377,17 +377,6 @@ export default function CityMap() {
                 </div>
                 <div className="stat-change">{stats.avgAQI <= 50 ? "Good" : "Moderate"}</div>
               </div>
-              
-              <div className="quick-stat">
-                <div className="stat-icon" style={{ color: "#ef4444" }}>
-                  <AlertCircle size={20} />
-                </div>
-                <div className="stat-details">
-                  <div className="stat-value">{stats.highRisk}</div>
-                  <div className="stat-label">High Risk</div>
-                </div>
-                <div className="stat-change">Monitor</div>
-              </div>
             </div>
 
             {/* Filter Controls */}
@@ -569,20 +558,6 @@ export default function CityMap() {
               <div className="stat-content">
                 <span className="stat-value">{filteredAreas.length}</span>
                 <span className="stat-label">Active Zones</span>
-              </div>
-            </div>
-            
-            <div className="stat-divider"></div>
-            
-            <div className="stat-item">
-              <div className="stat-icon" style={{ background: 'rgba(239, 68, 68, 0.1)' }}>
-                <AlertCircle size={16} />
-              </div>
-              <div className="stat-content">
-                <span className="stat-value" style={{ color: '#ef4444' }}>
-                  {filteredAreas.filter(a => (a.risk || 'LOW') === 'HIGH' || (a.risk || 'LOW') === 'SEVERE').length}
-                </span>
-                <span className="stat-label">High Risk</span>
               </div>
             </div>
             
