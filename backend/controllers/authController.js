@@ -64,9 +64,13 @@ exports.register = async (req, res) => {
     });
 
   } catch (err) {
-    console.log(err.response?.data);
-  alert(err.response?.data?.message || "Registration failed");
-  }
+  console.error("Register Error:", err);
+
+  res.status(500).json({
+    message: "Registration failed",
+    error: err.message
+  });
+}
 };
 
 
