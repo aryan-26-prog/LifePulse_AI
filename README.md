@@ -10,7 +10,7 @@
 <header>
   <h1>🌍 LifePulse AI</h1>
   <p>
-    Real-Time Community Health Intelligence & Disaster Response Platform
+    Real-Time Community Health Intelligence Platform
   </p>
 </header>
 
