@@ -20,6 +20,7 @@ const getTransporter = () => {
     host: "smtp.gmail.com",
     port: 465,
     secure: true,
+    family: 4, // Force IPv4 connection to prevent ENETUNREACH errors on cloud platforms like Render
     auth: {
       user,
       pass,
