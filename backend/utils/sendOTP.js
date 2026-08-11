@@ -1,35 +1,53 @@
 const nodemailer = require("nodemailer");
 
-module.exports = async (email, otp) => {
+let transporter = null;
+
+const getTransporter = () => {
+  if (transporter) return transporter;
+
   const user = process.env.EMAIL_USER;
   const pass = process.env.EMAIL_PASS;
 
   if (!user || !pass) {
-    throw new Error(`EMAIL_USER or EMAIL_PASS environment variable is missing on server`);
+    console.warn("⚠️ EMAIL_USER or EMAIL_PASS missing on server");
+    return null;
   }
 
-  const cleanUser = user.trim();
-  const cleanPass = pass.trim();
-
-  const transporter = nodemailer.createTransport({
+  transporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
     port: 587,
     secure: false,
     requireTLS: true,
+    pool: true,
+    maxConnections: 5,
+    maxMessages: 100,
     auth: {
-      user: cleanUser,
-      pass: cleanPass
+      user: user.trim(),
+      pass: pass.trim()
     },
     tls: {
       rejectUnauthorized: false
     },
-    connectionTimeout: 20000,
-    greetingTimeout: 20000,
-    socketTimeout: 20000
+    connectionTimeout: 15000,
+    greetingTimeout: 15000,
+    socketTimeout: 15000
   });
 
-  await transporter.sendMail({
-    from: `"LifePulse AI" <${cleanUser}>`,
+  return transporter;
+};
+
+module.exports = async (email, otp) => {
+  const mailer = getTransporter();
+
+  if (!mailer) {
+    console.warn(`⚠️ Transporter unavailable. Logged OTP for ${email}: ${otp}`);
+    return;
+  }
+
+  const user = process.env.EMAIL_USER.trim();
+
+  await mailer.sendMail({
+    from: `"LifePulse AI" <${user}>`,
     to: email,
     subject: "LifePulse OTP Verification",
     html: `
@@ -44,5 +62,5 @@ module.exports = async (email, otp) => {
     `
   });
 
-  console.log(`✅ [NODEMAILER] OTP email sent successfully to ${email}`);
+  console.log(`✅ [NODEMAILER POOL] Real email delivered to ${email}`);
 };

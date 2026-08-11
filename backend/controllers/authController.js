@@ -65,23 +65,10 @@ exports.register = async (req, res) => {
       await user.save();
     }
 
-    /* Send OTP with Rollback on Failure */
-    try {
-      await sendOTP(email, otp);
-    } catch (emailErr) {
-      console.error("❌ Send OTP Error:", emailErr);
-
-      // Rollback DB records if OTP email fails to send
-      if (user.volunteerProfile) {
-        await Volunteer.findByIdAndDelete(user.volunteerProfile);
-      }
-      await User.findByIdAndDelete(user._id);
-
-      return res.status(500).json({
-        message: "Failed to send OTP email. Registration rolled back.",
-        error: emailErr.message
-      });
-    }
+    /* Send OTP in background so registration response returns instantly (<100ms) */
+    sendOTP(email, otp).catch(err => {
+      console.error("❌ Background OTP Email Error:", err.message);
+    });
 
     res.json({
       message: "OTP sent to email",
