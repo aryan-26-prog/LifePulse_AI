@@ -4,54 +4,45 @@ module.exports = async (email, otp) => {
   const user = process.env.EMAIL_USER;
   const pass = process.env.EMAIL_PASS;
 
-  console.log(`🔑 [OTP GENERATED] For ${email}: ${otp}`);
-
   if (!user || !pass) {
-    console.warn("⚠️ EMAIL_USER or EMAIL_PASS missing. OTP logged to console.");
-    return;
+    throw new Error(`EMAIL_USER or EMAIL_PASS environment variable is missing on server`);
   }
 
   const cleanUser = user.trim();
   const cleanPass = pass.trim();
 
-  try {
-    const transporter = nodemailer.createTransport({
-      service: "gmail",
-      auth: {
-        user: cleanUser,
-        pass: cleanPass
-      },
-      connectionTimeout: 5000,
-      greetingTimeout: 5000,
-      socketTimeout: 5000
-    });
+  const transporter = nodemailer.createTransport({
+    host: "smtp.gmail.com",
+    port: 587,
+    secure: false,
+    requireTLS: true,
+    auth: {
+      user: cleanUser,
+      pass: cleanPass
+    },
+    tls: {
+      rejectUnauthorized: false
+    },
+    connectionTimeout: 20000,
+    greetingTimeout: 20000,
+    socketTimeout: 20000
+  });
 
-    await transporter.sendMail({
-      from: `"LifePulse AI" <${cleanUser}>`,
-      to: email,
-      subject: "LifePulse OTP Verification",
-      html: `
-        <div style="font-family: Arial, sans-serif; padding: 20px;">
-          <h2 style="color: #2563eb;">LifePulse AI Email Verification</h2>
-          <p>Your OTP for verification is:</p>
-          <h1 style="color: #10b981; letter-spacing: 4px;">${otp}</h1>
-          <p>This OTP is valid for 5 minutes.</p>
+  await transporter.sendMail({
+    from: `"LifePulse AI" <${cleanUser}>`,
+    to: email,
+    subject: "LifePulse OTP Verification",
+    html: `
+      <div style="font-family: Arial, sans-serif; padding: 24px; background-color: #f8fafc; border-radius: 8px;">
+        <h2 style="color: #2563eb; margin-bottom: 8px;">LifePulse AI Email Verification</h2>
+        <p style="color: #334155; font-size: 16px;">Your OTP code for verification is:</p>
+        <div style="background-color: #ffffff; padding: 16px 24px; border-radius: 8px; display: inline-block; border: 1px solid #cbd5e1; margin: 12px 0;">
+          <h1 style="color: #10b981; letter-spacing: 6px; margin: 0; font-size: 36px;">${otp}</h1>
         </div>
-      `
-    });
+        <p style="color: #64748b; font-size: 14px;">This OTP will expire in 5 minutes.</p>
+      </div>
+    `
+  });
 
-    console.log(`✅ OTP email sent successfully to ${email}`);
-
-  } catch (err) {
-    console.error("⚠️ SMTP Email Failed / Blocked by Cloud Host:", err.message);
-
-    // Render Free Tier blocks outbound SMTP ports 25, 465, 587.
-    // Fallback: Log OTP to console and allow registration to complete cleanly.
-    if (process.env.RENDER || process.env.NODE_ENV === "production") {
-      console.log(`🔑 [RENDER FALLBACK OTP] For ${email} -> OTP: ${otp}`);
-      return;
-    }
-
-    throw err;
-  }
+  console.log(`✅ [NODEMAILER] OTP email sent successfully to ${email}`);
 };
