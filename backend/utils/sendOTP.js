@@ -15,9 +15,8 @@ const getTransporter = () => {
 
   transporter = nodemailer.createTransport({
     host: "smtp.gmail.com",
-    port: 587,
-    secure: false,
-    requireTLS: true,
+    port: 465,
+    secure: true,
     pool: true,
     maxConnections: 5,
     maxMessages: 100,
@@ -27,10 +26,7 @@ const getTransporter = () => {
     },
     tls: {
       rejectUnauthorized: false
-    },
-    connectionTimeout: 15000,
-    greetingTimeout: 15000,
-    socketTimeout: 15000
+    }
   });
 
   return transporter;
