@@ -2,7 +2,13 @@ const express = require("express");
 const dotenv = require("dotenv");
 const cors = require("cors");
 const http = require("http");
+const dns = require("dns");
 const { Server } = require("socket.io");
+
+/* Force IPv4 first DNS lookup to prevent ENETUNREACH errors on cloud hosts like Render */
+if (dns.setDefaultResultOrder) {
+  dns.setDefaultResultOrder("ipv4first");
+}
 
 const connectDB = require("./config/db");
 
