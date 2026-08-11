@@ -65,10 +65,15 @@ exports.register = async (req, res) => {
       await user.save();
     }
 
-    /* Send OTP in background so registration response returns instantly (<100ms) */
-    sendOTP(email, otp).catch(err => {
-      console.error("❌ Background OTP Email Error:", err.message);
-    });
+    /* Send OTP email - await to ensure delivery succeeds before sending success response */
+    try {
+      await sendOTP(email, otp);
+    } catch (emailErr) {
+      console.error("❌ OTP Email Delivery Error:", emailErr.message);
+      return res.status(500).json({
+        message: `OTP Email failed to send: ${emailErr.message}`
+      });
+    }
 
     res.json({
       message: "OTP sent to email",
@@ -132,9 +137,13 @@ exports.resendOTP = async (req, res) => {
 
   await user.save();
 
-  await sendOTP(user.email, otp);
-
-  res.json({ message: "OTP resent" });
+  try {
+    await sendOTP(user.email, otp);
+    res.json({ message: "OTP resent" });
+  } catch (err) {
+    console.error("❌ Resend OTP Email Error:", err.message);
+    res.status(500).json({ message: `Failed to resend OTP: ${err.message}` });
+  }
 };
 
 

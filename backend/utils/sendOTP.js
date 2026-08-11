@@ -20,11 +20,13 @@ const getTransporter = () => {
     pool: true,
     maxConnections: 5,
     maxMessages: 100,
-
     auth: {
       user,
       pass,
     },
+    tls: {
+      rejectUnauthorized: false
+    }
   });
 
   return transporter;
@@ -34,10 +36,9 @@ module.exports = async (email, otp) => {
   const mailer = getTransporter();
 
   if (!mailer) {
-    console.warn(
-      `⚠️ Transporter unavailable. Logged OTP for ${email}: ${otp}`
-    );
-    return;
+    const msg = `EMAIL_USER or EMAIL_PASS missing in server environment variables. Logged OTP for ${email}: ${otp}`;
+    console.warn(`⚠️ ${msg}`);
+    throw new Error(msg);
   }
 
   const user = process.env.EMAIL_USER.trim();
