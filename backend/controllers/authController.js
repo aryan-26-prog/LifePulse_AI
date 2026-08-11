@@ -23,8 +23,17 @@ exports.register = async (req, res) => {
 
     const exists = await User.findOne({ email });
 
-    if (exists)
-      return res.status(400).json({ message: "Email already exists" });
+    if (exists) {
+      if (exists.isEmailVerified) {
+        return res.status(400).json({ message: "Email already registered. Please login." });
+      } else {
+        // Cleanup previous unverified registration attempt
+        if (exists.volunteerProfile) {
+          await Volunteer.findByIdAndDelete(exists.volunteerProfile);
+        }
+        await User.findByIdAndDelete(exists._id);
+      }
+    }
 
     const hashed = await bcrypt.hash(password, 10);
 
@@ -46,7 +55,6 @@ exports.register = async (req, res) => {
 
     /* Volunteer profile auto create */
     if (role === "volunteer") {
-
       const volunteer = await Volunteer.create({
         name,
         available: true
@@ -56,7 +64,23 @@ exports.register = async (req, res) => {
       await user.save();
     }
 
-    await sendOTP(email, otp);
+    /* Send OTP with Rollback on Failure */
+    try {
+      await sendOTP(email, otp);
+    } catch (emailErr) {
+      console.error("❌ Send OTP Error:", emailErr);
+
+      // Rollback DB records if OTP email fails to send
+      if (user.volunteerProfile) {
+        await Volunteer.findByIdAndDelete(user.volunteerProfile);
+      }
+      await User.findByIdAndDelete(user._id);
+
+      return res.status(500).json({
+        message: "Failed to send OTP email. Registration rolled back.",
+        error: emailErr.message
+      });
+    }
 
     res.json({
       message: "OTP sent to email",
@@ -64,13 +88,13 @@ exports.register = async (req, res) => {
     });
 
   } catch (err) {
-  console.error("Register Error:", err);
+    console.error("Register Error:", err);
 
-  res.status(500).json({
-    message: "Registration failed",
-    error: err.message
-  });
-}
+    res.status(500).json({
+      message: "Registration failed",
+      error: err.message
+    });
+  }
 };
 
 

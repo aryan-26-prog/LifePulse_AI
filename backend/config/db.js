@@ -1,7 +1,13 @@
 const mongoose = require("mongoose");
 const dns = require("dns");
 
+let isConnected = false;
+
 const connectDB = async () => {
+  if (isConnected || mongoose.connection.readyState >= 1) {
+    return;
+  }
+
   try {
     // Set reliable DNS servers for SRV record lookup on Node.js / Windows environments
     try {
@@ -14,10 +20,11 @@ const connectDB = async () => {
       dbName: "lifepulse"   
     });
 
+    isConnected = true;
     console.log("✅ MongoDB Atlas Connected (lifepulse)");
   } catch (err) {
     console.error("❌ MongoDB Connection Failed:", err.message);
-    process.exit(1);
+    throw err;
   }
 };
 
