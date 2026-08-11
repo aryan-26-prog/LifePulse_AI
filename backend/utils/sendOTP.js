@@ -3,8 +3,6 @@ const nodemailer = require("nodemailer");
 let transporter = null;
 
 const getTransporter = () => {
-  if (transporter) return transporter;
-
   const user = process.env.EMAIL_USER?.trim();
   const pass = process.env.EMAIL_PASS?.trim();
 
@@ -13,13 +11,8 @@ const getTransporter = () => {
     return null;
   }
 
-  transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 587,
-    secure: false, // STARTTLS for port 587
-    pool: true,
-    maxConnections: 5,
-    maxMessages: 100,
+  return nodemailer.createTransport({
+    service: "gmail",
     auth: {
       user,
       pass,
@@ -28,8 +21,6 @@ const getTransporter = () => {
       rejectUnauthorized: false
     }
   });
-
-  return transporter;
 };
 
 module.exports = async (email, otp) => {
