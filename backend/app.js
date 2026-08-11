@@ -77,8 +77,15 @@ io.on("connection", (socket) => {
 const PORT = process.env.PORT || 5000;
 
 if (require.main === module || !process.env.VERCEL) {
-  server.listen(PORT, () => {
-    console.log(`🚀 Server running on http://localhost:${PORT}`);
+  connectDB().then(() => {
+    server.listen(PORT, () => {
+      console.log(`🚀 Server running on http://localhost:${PORT}`);
+    });
+  }).catch((err) => {
+    console.error("❌ DB Startup Error:", err.message);
+    server.listen(PORT, () => {
+      console.log(`🚀 Server running on http://localhost:${PORT} (DB Connection Pending)`);
+    });
   });
 }
 

@@ -9,7 +9,10 @@ const connectDB = async () => {
   }
 
   try {
-    // Set reliable DNS servers for SRV record lookup on Node.js / Windows environments
+    if (dns.setDefaultResultOrder) {
+      dns.setDefaultResultOrder("ipv4first");
+    }
+
     try {
       dns.setServers(["8.8.8.8", "1.1.1.1", "8.8.4.4"]);
     } catch (dnsErr) {
@@ -17,7 +20,8 @@ const connectDB = async () => {
     }
 
     await mongoose.connect(process.env.MONGO_URI, {
-      dbName: "lifepulse"   
+      dbName: "lifepulse",
+      family: 4
     });
 
     isConnected = true;
