@@ -57,6 +57,7 @@ exports.register = async (req, res) => {
     if (role === "volunteer") {
       const volunteer = await Volunteer.create({
         name,
+        phone: req.body.phone || "",
         available: true
       });
 

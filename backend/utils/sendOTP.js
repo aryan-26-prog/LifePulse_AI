@@ -8,21 +8,19 @@ module.exports = async (email, otp) => {
     throw new Error(`EMAIL_USER or EMAIL_PASS environment variable is missing (user: ${user ? 'OK' : 'MISSING'}, pass: ${pass ? 'OK' : 'MISSING'})`);
   }
 
+  const cleanUser = user.trim();
+  const cleanPass = pass.trim();
+
   const transporter = nodemailer.createTransport({
-    host: "smtp.gmail.com",
-    port: 465,
-    secure: true,
+    service: "gmail",
     auth: {
-      user: user,
-      pass: pass
-    },
-    tls: {
-      rejectUnauthorized: false
+      user: cleanUser,
+      pass: cleanPass
     }
   });
 
   await transporter.sendMail({
-    from: `"LifePulse AI" <${user}>`,
+    from: `"LifePulse AI" <${cleanUser}>`,
     to: email,
     subject: "LifePulse OTP Verification",
     html: `
