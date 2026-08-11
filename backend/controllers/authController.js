@@ -65,10 +65,12 @@ exports.register = async (req, res) => {
       await user.save();
     }
 
-    /* Send OTP in background so registration response returns instantly (<100ms) */
-    sendOTP(email, otp).catch(err => {
-      console.error("❌ Background OTP Email Error:", err.message);
-    });
+    /* Send OTP email - must await to ensure delivery finishes (especially on Vercel/serverless) */
+    try {
+      await sendOTP(email, otp);
+    } catch (mailErr) {
+      console.error("❌ Failed to send OTP email:", mailErr);
+    }
 
     res.json({
       message: "OTP sent to email",
